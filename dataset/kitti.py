@@ -3,6 +3,7 @@ import os, glob, random, copy
 import numpy as np
 import open3d
 import torch
+import logging
 from scipy.spatial.transform import Rotation
 
 from torchsparse import SparseTensor
@@ -95,6 +96,10 @@ class KITTIDataset(Dataset):
         return len(self.files)
 
 
+    # def reset_seed(self, seed=0):
+    #     logging.info(f"Resetting the data loader seed to {seed}")
+    #     self.randg.seed(seed)
+
     def __getitem__(self, idx):
         drive = self.files[idx][0]
         t0, t1 = self.files[idx][1], self.files[idx][2]
@@ -177,17 +182,18 @@ class KITTIDataset(Dataset):
         self.point_valid_index = None
 
         # get feats
-        feats0 = np.ones((src_pcd_input.shape[0],1),dtype=np.float32)
-        feats1 = np.ones((tgt_pcd_input.shape[0],1),dtype=np.float32)
+        # feats0 = np.ones((src_pcd_input.shape[0],1),dtype=np.float32)
+        # feats1 = np.ones((tgt_pcd_input.shape[0],1),dtype=np.float32)
 
         # voxel down-sample the point clouds here
-        self.do_voxel_projection(feats0,src_pcd_norm,'sinput_src')
+        # print('block:',block0.shape)
+        self.do_voxel_projection(block0,src_pcd_norm,'sinput_src')
         self.do_range_projection(src_pcd_input,src_pcd_refl,'src_range_image','src_px','src_py')
         src_xyz = src_pcd_input[self.point_valid_index!=-1]\
                     if self.point_valid_index is not None else src_pcd_input
         self.point_valid_index = None
 
-        self.do_voxel_projection(feats1,tgt_pcd_norm,'sinput_tgt')
+        self.do_voxel_projection(block1,tgt_pcd_norm,'sinput_tgt')
         self.do_range_projection(tgt_pcd_input,tgt_pcd_refl,'tgt_range_image','tgt_px','tgt_py')
         tgt_xyz = src_pcd_input[self.point_valid_index!=-1]\
                     if self.point_valid_index is not None else tgt_pcd_input
@@ -198,11 +204,10 @@ class KITTIDataset(Dataset):
         matching_inds = get_correspondences(to_o3d_pcd(src_xyz), to_o3d_pcd(tgt_xyz), tsfm, self.search_voxel_size * scale)
         if(matching_inds.size(0) < self.max_corr and self.split == 'train'):
             return self.__getitem__(np.random.choice(len(self.files),1)[0])
-
+        print(matching_inds.shape)
         rot, trans = to_tensor(rot), to_tensor(trans)
         self.data['correspondence'] = matching_inds
-        self.data['rot'] = rot
-        self.data['trans'] = trans
+        self.data['tsfm'] = tsfm.astype(np.float32)
         self.data['scale'] = scale
         return self.data
 
@@ -238,7 +243,7 @@ class KITTIDataset(Dataset):
         coord_,feat_ = (points_xyz[self.point_valid_index != -1],
                                feat[self.point_valid_index != -1]) \
                         if self.point_valid_index is not None else (points_xyz,feat)
-        # print(coord_.shape)
+        # print('coord_:',coord_.shape)
         self.data[name] = SparseTensor(feats=feat_,coords=coord_)
         
             
@@ -365,8 +370,7 @@ class KITTIDataset(Dataset):
             self.data['sinput_src'] = SparseTensor(feat,coord)
             self.data['sinput_tgt'] = SparseTensor(feat,coord)
             self.data['correspondences'] = matching_inds # numpy
-            self.data['rot'] = rot # tensor
-            self.data['trans'] = trans # tensor
+            self.data['tsfm'] = tsfm # tensor
             self.data['scale'] = scale # scale
             self.data['src_range_image']
             self.data['src_px']

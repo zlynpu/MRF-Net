@@ -15,14 +15,14 @@ from scipy.spatial.transform import Rotation
 
 from sklearn.neighbors import NearestNeighbors
 import torchsparse.nn.functional as F
-from torchsparse import SparseTensor
+from torchsparse import SparseTensor, PointTensor
 from torchsparse.nn.utils import get_kernel_offsets
 from typing import Union, Tuple
 
 _EPS = 1e-7  # To prevent division by zero
 
 __all__ = ['initial_voxelize', 'point_to_voxel', 'voxel_to_point',
-           'range_to_point','point_to_range','PointTensor']
+           'range_to_point','point_to_range']
 
 class Logger:
     def __init__(self, path):
@@ -124,17 +124,49 @@ def natural_key(string_):
     return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]
 
 
-class PointTensor(SparseTensor):
-    def __init__(
-        self,
-        feats: torch.Tensor,
-        coords: torch.Tensor,
-        stride: Union[int, Tuple[int, ...]] = 1,
-    ):
-        super().__init__(feats=feats, coords=coords, stride=stride)
-        self._caches.idx_query = dict()
-        self._caches.idx_query_devox = dict()
-        self._caches.weights_devox = dict()
+# class PointTensor(SparseTensor):
+#     def __init__(
+#         self,
+#         feats: torch.Tensor,
+#         coords: torch.Tensor,
+#         stride: Union[int, Tuple[int, ...]] = 1,
+#     ):
+#         super().__init__(feats=feats, coords=coords, stride=stride)
+#         self._caches.idx_query = dict()
+#         self._caches.idx_query_devox = dict()
+#         self._caches.weights_devox = dict()
+# class PointTensor:
+
+#     def __init__(self, feats, coords, idx_query=None, weights=None):
+#         self.F = feats
+#         self.C = coords
+#         self.idx_query = idx_query if idx_query is not None else {}
+#         self.weights = weights if weights is not None else {}
+#         self.additional_features = {}
+#         self.additional_features['idx_query'] = {}
+#         self.additional_features['counts'] = {}
+
+#     def cuda(self):
+#         self.F = self.F.cuda()
+#         self.C = self.C.cuda()
+#         return self
+
+#     def detach(self):
+#         self.F = self.F.detach()
+#         self.C = self.C.detach()
+#         return self
+
+#     def to(self, device, non_blocking=True):
+#         self.F = self.F.to(device, non_blocking=non_blocking)
+#         self.C = self.C.to(device, non_blocking=non_blocking)
+#         return self
+
+#     def __add__(self, other):
+#         tensor = PointTensor(self.F + other.F, self.C, self.idx_query,
+#                              self.weights)
+#         tensor.additional_features = self.additional_features
+#         return tensor
+    
 
 def initial_voxelize(z: PointTensor, after_res) -> SparseTensor:
 
@@ -243,7 +275,7 @@ def range_to_point(x,px,py):
     for batch,(p_x,p_y) in enumerate(zip(px,py)):
         pypx = torch.stack([p_x,p_y],dim=2).to(px[0].device)
         # print(pypx.shape,x.shape) # torch.Size([1, 111338, 2]) torch.Size([1, 32, 64, 2048])
-        resampled = grid_sample(x[batch].unsqueeze(0),pypx.unsqueeze(0))
+        resampled = grid_sample(x[batch].unsqueeze(0).float(),pypx.unsqueeze(0).float())
         # print(resampled.shape) # torch.Size([1, 32, 1, 111338])
         r2p.append(resampled.squeeze().permute(1,0))
         # print(resampled.squeeze().permute(1,0).shape)
@@ -260,7 +292,7 @@ def point_to_range(range_shape,pF,px,py):
     # t1 = time.time()
     for batch,(p_x,p_y) in enumerate(zip(px,py)):
         image = torch.zeros(size=(H,W,pF.shape[1])).to(px[0].device)
-        image_cumsum = torch.zeros(size=(H,W,pF.shape[1])) + 1e-5
+        image_cumsum = torch.zeros(size=(H,W,pF.shape[1])).to(px[0].device)
 
         p_x = torch.floor((p_x/2. + 0.5) * W).long()
         p_y = torch.floor((p_y/2. + 0.5) * H).long()
@@ -270,9 +302,8 @@ def point_to_range(range_shape,pF,px,py):
 
         ''' v2: use average '''
         image[p_y,p_x] += pF[cnt:cnt+p_x.shape[1]]
-        image_cumsum[p_y,p_x] += torch.ones(pF.shape[1])
+        image_cumsum[p_y,p_x] += torch.ones(pF.shape[1]).to(px[0].device)
         image = image/image_cumsum.to(px[0].device)
-
         r.append(image.permute(2,0,1))
         cnt += p_x.shape[1]
     # print(time.time()-t1) # 0.03s batch=12
