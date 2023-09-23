@@ -254,6 +254,7 @@ class ContrastiveLossTrainer(AlignmentTrainer):
       # pairs consist of (xyz1 index, xyz0 index)
       feat_timer.tic()
       sinput_src = input_dict['sinput_src'].to(self.device)
+      # print(sinput_src.C)
       sinput_tgt = input_dict['sinput_tgt'].to(self.device)
 
       src_image = input_dict['src_range_image'].to(self.device)
@@ -277,7 +278,7 @@ class ContrastiveLossTrainer(AlignmentTrainer):
       T_est = te.est_quad_linear_robust(xyz0_corr, xyz1_corr)
 
       loss = corr_dist(T_est, T_gt, xyz0[:,:3], xyz1[:,:3], weight=None)
-      print(loss)
+      # print(loss)
       loss_meter.update(loss)
 
       rte = np.linalg.norm(T_est[:3, 3] - T_gt[0, :3, 3])
@@ -375,7 +376,7 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
     pos_ind0 = sample_pos_pairs[:, 0].long()
     pos_ind1 = sample_pos_pairs[:, 1].long()
     posF0, posF1 = F0[pos_ind0], F1[pos_ind1]
-
+    # print('posF0',posF0.shape,'subF1',subF1.shape)
     D01 = pdist(posF0, subF1, dist_type='L2')
     D10 = pdist(posF1, subF0, dist_type='L2')
 
@@ -428,8 +429,9 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
         sinput_tgt = input_dict['sinput_tgt'].to(self.device)
 
         src_image = input_dict['src_range_image'].to(self.device)
+        # print('srcimage',src_image)
         tgt_image = input_dict['tgt_range_image'].to(self.device)
-
+        # print('tgtimage',tgt_image)
         src_px, src_py= input_dict['src_px'], input_dict['src_py']
         tgt_px, tgt_py= input_dict['tgt_px'], input_dict['tgt_py']
 
@@ -441,11 +443,11 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
         F0 = self.model(sinput_src,src_image,src_py,src_px)
         F1 = self.model(sinput_tgt,tgt_image,tgt_py,tgt_px)
 
-        pos_pairs = input_dict['correspondences']
+        pos_pairs = input_dict['correspondence']
         pos_loss, neg_loss = self.contrastive_hardest_negative_loss(
             F0,
             F1,
-            pos_pairs,
+            pos_pairs[0,:,:],
             num_pos=self.config.num_pos_per_batch * self.config.batch_size,
             num_hn_samples=self.config.num_hn_samples_per_batch *
             self.config.batch_size)
@@ -453,7 +455,7 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
         pos_loss /= iter_size
         neg_loss /= iter_size
         loss = pos_loss + self.neg_weight * neg_loss
-        print(loss)
+        # print(loss)
         loss.backward()
 
         batch_loss += loss.item()

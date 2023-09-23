@@ -291,8 +291,8 @@ def point_to_range(range_shape,pF,px,py):
     r = []
     # t1 = time.time()
     for batch,(p_x,p_y) in enumerate(zip(px,py)):
-        image = torch.zeros(size=(H,W,pF.shape[1])).to(px[0].device)
-        image_cumsum = torch.zeros(size=(H,W,pF.shape[1])).to(px[0].device)
+        image = torch.zeros(size=(H,W,pF.shape[1])).to(px[0].device) 
+        image_cumsum = torch.zeros(size=(H,W,pF.shape[1])).to(px[0].device)+1e-5
 
         p_x = torch.floor((p_x/2. + 0.5) * W).long()
         p_y = torch.floor((p_y/2. + 0.5) * H).long()

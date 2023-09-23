@@ -27,8 +27,8 @@ trainer_arg.add_argument('--val_batch_size', type=int, default=1)
 trainer_arg.add_argument('--use_hard_negative', type=str2bool, default=True)
 trainer_arg.add_argument('--hard_negative_sample_ratio', type=int, default=0.05)
 trainer_arg.add_argument('--hard_negative_max_num', type=int, default=3000)
-trainer_arg.add_argument('--num_pos_per_batch', type=int, default=1024)
-trainer_arg.add_argument('--num_hn_samples_per_batch', type=int, default=256)
+trainer_arg.add_argument('--num_pos_per_batch', type=int, default=2058)
+trainer_arg.add_argument('--num_hn_samples_per_batch', type=int, default=512)
 
 # Metric learning loss
 trainer_arg.add_argument('--neg_thresh', type=float, default=1.4)
@@ -74,7 +74,7 @@ net_arg.add_argument('--best_val_metric', type=str, default='rte',help='[feat_ma
 opt_arg = add_argument_group('Optimizer')
 opt_arg.add_argument('--optimizer', type=str, default='SGD')
 opt_arg.add_argument('--max_epoch', type=int, default=200)
-opt_arg.add_argument('--lr', type=float, default=1e-1)
+opt_arg.add_argument('--lr', type=float, default=5e-3)
 opt_arg.add_argument('--momentum', type=float, default=0.8)
 opt_arg.add_argument('--sgd_momentum', type=float, default=0.9)
 opt_arg.add_argument('--sgd_dampening', type=float, default=0.1)
@@ -100,7 +100,7 @@ misc_arg.add_argument('--nn_max_n',type=int,default=500,help='The maximum number
 data_arg = add_argument_group('Data')
 # ----------------------------------------------------------------------- #
 # Kitti  ---- |output path|
-output_kitti = "outputs_kitti"
+output_kitti = "outputs_kitti/exp1"
 logging_arg.add_argument('--out_dir', type=str, default=output_kitti)
 
 #Kitti  ----  |resume dir|
@@ -114,7 +114,7 @@ misc_arg.add_argument('--test_num_thread', type=int, default=8)
 # Kitti ---- |voxel size|
 voxel_size_Kitti = 0.05
 data_arg.add_argument('--voxel_size', type=float, default=voxel_size_Kitti)
-overlap_radius = 0.45
+overlap_radius = 0.15
 data_arg.add_argument('--overlap_radius', type=float, default=overlap_radius)
 range_size = [64,2048]
 data_arg.add_argument('--range_size', type=list, default=range_size)

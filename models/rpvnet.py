@@ -26,6 +26,7 @@ class GFM(nn.Module):
 
         v2p = voxel_to_point(v, p)
         r2p = range_to_point(r, px, py)
+        # print("Layer gfm - NaN check:", torch.isnan(r2p).any())
 
         r_weight = self.range_branch(r2p)
         p_weight = self.point_branch(p.F)
@@ -46,6 +47,7 @@ class GFM(nn.Module):
         p.F = fuse
         v = point_to_voxel(v,p)
         r = point_to_range(r.shape[-2:],p.F,px,py)
+        # print("Layer 0 - NaN check:", torch.isnan(r).any())
 
         return r,p,v
 
@@ -177,17 +179,19 @@ class RPVnet(nn.Module):
     def forward(self,lidar,image,py,px):
 
         points = PointTensor(lidar.F,lidar.C.float())
-
+        # print('point',points.C)
         v0 = initial_voxelize(points,self.vsize)
-        # print(v0.F.shape)
+        # print('voxel',v0.C)
 
         ''' Fuse 1 '''
         v0 = self.voxel_stem(v0)
         points.F = self.point_stem[0](points.F) # 32
         range0 = self.range_stem(image) # n,32,64,2048
-
+        # print("Layer 0 - NaN check:", torch.isnan(range0).any())
+        # print(range0.shape)
+        # print("Layer 1 - NaN check:", torch.isnan(v.F).any())
         range0,points,v0 = self.gfm_stem(range0,points,v0,px,py)
-
+        # print("Layer 0 - NaN check:", torch.isnan(range0).any())
         # todo: add dropout here?
         # v0.F = self.dropout(v0.F)
 
@@ -197,6 +201,7 @@ class RPVnet(nn.Module):
         v2 = self.voxel_down2(v1) #128
         v3 = self.voxel_down3(v2) #256
         v4 = self.voxel_down4(v3) #256
+        # print("Layer 1 - NaN check:", torch.isnan(range0).any())
 
         points.F = self.point_stem[1](points.F)# 64
 
@@ -207,6 +212,7 @@ class RPVnet(nn.Module):
 
         range4,points,v4 = self.gfm_stage4(range4,points,v4,px,py)
         v4.F = self.dropout(v4.F)
+        # print("Layer 2 - NaN check:", torch.isnan(range4).any())
 
         ''' Fuse 3 '''
         v5 = self.voxel_up1(v4,v3)
@@ -216,8 +222,10 @@ class RPVnet(nn.Module):
 
         range5 = self.range_stage5(range4,range3)
         range6 = self.range_stage6(range5,range2)
+        # print("Layer 2.1 - NaN check:", torch.isnan(range6).any())
 
         range6,points,v6 = self.gfm_stage6(range6,points,v6,px,py)
+        # print("Layer 2.2 - NaN check:", torch.isnan(range6).any())
         v6.F = self.dropout(v6.F)
 
         ''' Fuse 4 '''
@@ -228,9 +236,10 @@ class RPVnet(nn.Module):
 
         range7 = self.range_stage7(range6,range1)
         range8 = self.range_stage8(range7,range0)
-
+        # print("Layer 2.5 - NaN check:", torch.isnan(range8).any())
         range8,points,v8 = self.gfm_stage8(range8,points,v8,px,py)
 
         out = self.final(points.F)
+        # print("Layer 3 - NaN check:", torch.isnan(range8).any())
 
         return out

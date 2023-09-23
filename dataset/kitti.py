@@ -174,11 +174,13 @@ class KITTIDataset(Dataset):
         else:
             scale = 1
 
+        block0[:,:3] = src_pcd_input
+        block1[:,:3] = tgt_pcd_input
         src_pcd_refl = block0[:,3]
         tgt_pcd_refl = block1[:,3]
 
-        src_pcd_norm = src_pcd_input - src_pcd_input.min(0,keepdims=1)
-        tgt_pcd_norm = tgt_pcd_input - tgt_pcd_input.min(0,keepdims=1)
+        # src_pcd_norm = src_pcd_input - src_pcd_input.min(0,keepdims=1)
+        # tgt_pcd_norm = tgt_pcd_input - tgt_pcd_input.min(0,keepdims=1)
         self.point_valid_index = None
 
         # get feats
@@ -187,27 +189,25 @@ class KITTIDataset(Dataset):
 
         # voxel down-sample the point clouds here
         # print('block:',block0.shape)
-        self.do_voxel_projection(block0,src_pcd_norm,'sinput_src')
-        self.do_range_projection(src_pcd_input,src_pcd_refl,'src_range_image','src_px','src_py')
-        src_xyz = src_pcd_input[self.point_valid_index!=-1]\
-                    if self.point_valid_index is not None else src_pcd_input
-        self.point_valid_index = None
+        sel0 = self.do_voxel_projection(block0,src_pcd_input,'sinput_src')
+        self.do_range_projection(src_pcd_input[sel0],src_pcd_refl[sel0],'src_range_image','src_px','src_py')
+        src_xyz = src_pcd_input[sel0]
+        # print('src',src_xyz.shape)
 
-        self.do_voxel_projection(block1,tgt_pcd_norm,'sinput_tgt')
-        self.do_range_projection(tgt_pcd_input,tgt_pcd_refl,'tgt_range_image','tgt_px','tgt_py')
-        tgt_xyz = src_pcd_input[self.point_valid_index!=-1]\
-                    if self.point_valid_index is not None else tgt_pcd_input
-
+        sel1 = self.do_voxel_projection(block1,tgt_pcd_input,'sinput_tgt')
+        self.do_range_projection(tgt_pcd_input[sel1],tgt_pcd_refl[sel1],'tgt_range_image','tgt_px','tgt_py')
+        tgt_xyz = tgt_pcd_input[sel1]
         # get correspondence
         tsfm = to_tsfm(rot, trans)
         
         matching_inds = get_correspondences(to_o3d_pcd(src_xyz), to_o3d_pcd(tgt_xyz), tsfm, self.search_voxel_size * scale)
         if(matching_inds.size(0) < self.max_corr and self.split == 'train'):
             return self.__getitem__(np.random.choice(len(self.files),1)[0])
-        print(matching_inds.shape)
-        rot, trans = to_tensor(rot), to_tensor(trans)
+        # print('matching:',matching_inds.shape)
+        # rot, trans = to_tensor(rot), to_tensor(trans)
+        tsfm = to_tensor(tsfm)
         self.data['correspondence'] = matching_inds
-        self.data['tsfm'] = tsfm.astype(np.float32)
+        self.data['tsfm'] = tsfm
         self.data['scale'] = scale
         return self.data
 
@@ -217,7 +217,7 @@ class KITTIDataset(Dataset):
 
         _, inds, inverse_map = sparse_quantize(pc, return_index=True,
                                               return_inverse=True)
-
+        # print(inds.shape)
         # todo: remove some voxels during training, 
         # so it is necessary to remove the point cloud corresponding to the voxel in this process
         # uses torchsparse to speed things up
@@ -240,19 +240,18 @@ class KITTIDataset(Dataset):
         # if self.point_valid_index.shape[0] > self.num_points :
         #   pass
 
-        coord_,feat_ = (points_xyz[self.point_valid_index != -1],
-                               feat[self.point_valid_index != -1]) \
-                        if self.point_valid_index is not None else (points_xyz,feat)
+        coord_,feat_ = (points_xyz[inds],feat[inds])
         # print('coord_:',coord_.shape)
         self.data[name] = SparseTensor(feats=feat_,coords=coord_)
+        return inds
         
             
     def do_range_projection(self, points_xyz, points_refl, name_img, name_px, name_py):
         H,W = self.range_size if self.range_size is not None else (64,2048)
 
-        points_xyz,points_refl = (points_xyz[self.point_valid_index != -1],
-                                  points_refl[self.point_valid_index != -1]) \
-                     if self.point_valid_index is not None else (points_xyz,points_refl)
+        # points_xyz,points_refl = (points_xyz[self.point_valid_index != -1],
+        #                           points_refl[self.point_valid_index != -1]) \
+        #              if self.point_valid_index is not None else (points_xyz,points_refl)
 
         depth = np.linalg.norm(points_xyz,2,axis=1)
 
@@ -275,6 +274,13 @@ class KITTIDataset(Dataset):
 
         proj_x = proj_x * W - 0.001
 
+        # px = proj_x.copy()
+        # py = proj_y.copy()
+        # Correct Out-of-Range Indices
+        proj_y = np.clip(proj_y, 0, H - 1)  
+        proj_x = np.clip(proj_x, 0, W - 1)  
+
+        # Correct Out-of-Range Indices
         px = proj_x.copy()
         py = proj_y.copy()
 
@@ -282,9 +288,7 @@ class KITTIDataset(Dataset):
         proj_y = np.floor(proj_y).astype(np.int32)
         # print(proj_y)
 
-        # Correct Out-of-Range Indices
-        proj_y = np.clip(proj_y, 0, H - 1)  
-        proj_x = np.clip(proj_x, 0, W - 1)  
+     
 
         proj_range = np.zeros((H,W)) + 1e-5
         proj_cumsum = np.zeros((H,W)) + 1e-5
