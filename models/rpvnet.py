@@ -181,6 +181,8 @@ class RPVnet(nn.Module):
         points = PointTensor(lidar.F,lidar.C.float())
         # print('point',points.C)
         v0 = initial_voxelize(points,self.vsize)
+        if torch.isnan(image).any():
+            print('there is nan at first')
         # print('voxel',v0.C)
 
         ''' Fuse 1 '''
@@ -191,6 +193,8 @@ class RPVnet(nn.Module):
         # print(range0.shape)
         # print("Layer 1 - NaN check:", torch.isnan(v.F).any())
         range0,points,v0 = self.gfm_stem(range0,points,v0,px,py)
+        if torch.isnan(range0).any():
+            print('there is nan after gfm')
         # print("Layer 0 - NaN check:", torch.isnan(range0).any())
         # todo: add dropout here?
         # v0.F = self.dropout(v0.F)
@@ -241,5 +245,6 @@ class RPVnet(nn.Module):
 
         out = self.final(points.F)
         # print("Layer 3 - NaN check:", torch.isnan(range8).any())
-
+        if torch.isnan(out).any():
+            print('there is nan in the end!!')
         return out

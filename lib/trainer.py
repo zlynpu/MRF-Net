@@ -270,11 +270,13 @@ class ContrastiveLossTrainer(AlignmentTrainer):
               
       F0 = self.model(sinput_src,src_image,src_py,src_px)
       F1 = self.model(sinput_tgt,tgt_image,tgt_py,tgt_px)
+      sel0 = input_dict['sel0'].tolist()
+      sel1 = input_dict['sel1'].tolist()
       feat_timer.toc()
 
       matching_timer.tic()
-      xyz0, xyz1, T_gt = input_dict['sinput_src'].C, input_dict['sinput_tgt'].C, input_dict['tsfm']
-      xyz0_corr, xyz1_corr = self.find_corr(xyz0[:,:3], xyz1[:,:3], F0, F1, subsample_size=5000)
+      xyz0, xyz1, T_gt = sinput_src.C, sinput_tgt.C, input_dict['tsfm']
+      xyz0_corr, xyz1_corr = self.find_corr(xyz0[sel0,:3], xyz1[sel1,:3], F0[sel0], F1[sel1], subsample_size=5000)
       T_est = te.est_quad_linear_robust(xyz0_corr, xyz1_corr)
 
       loss = corr_dist(T_est, T_gt, xyz0[:,:3], xyz1[:,:3], weight=None)
@@ -442,12 +444,15 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
                 
         F0 = self.model(sinput_src,src_image,src_py,src_px)
         F1 = self.model(sinput_tgt,tgt_image,tgt_py,tgt_px)
-
+        
+        sel0 = input_dict['sel0'].tolist()
+        sel1 = input_dict['sel1'].tolist()
         pos_pairs = input_dict['correspondence']
+        
         pos_loss, neg_loss = self.contrastive_hardest_negative_loss(
-            F0,
-            F1,
-            pos_pairs[0,:,:],
+            F0[sel0],
+            F1[sel1],
+            pos_pairs,
             num_pos=self.config.num_pos_per_batch * self.config.batch_size,
             num_hn_samples=self.config.num_hn_samples_per_batch *
             self.config.batch_size)

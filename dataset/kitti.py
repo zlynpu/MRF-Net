@@ -142,9 +142,23 @@ class KITTIDataset(Dataset):
         rot = tsfm[:3,:3]
         trans = tsfm[:3,3][:,None]
 
-        # add data augmentation
+        # get voxel and range image indices
         src_pcd_input = copy.deepcopy(xyz0)
         tgt_pcd_input = copy.deepcopy(xyz1)
+        src_pcd_refl = block0[:,3]
+        tgt_pcd_refl = block1[:,3]
+
+        self.point_valid_index = None
+        sel0 = self.do_voxel_projection(block0,src_pcd_input,'sinput_src')
+        self.data['sel0'] = sel0
+        self.do_range_projection(src_pcd_input,src_pcd_refl,'src_range_image','src_px','src_py')
+
+        self.point_valid_index = None
+        sel1 = self.do_voxel_projection(block1,tgt_pcd_input,'sinput_tgt')
+        self.data['sel1'] = sel1
+        self.do_range_projection(tgt_pcd_input,tgt_pcd_refl,'tgt_range_image','tgt_px','tgt_py')
+
+        # add data augmentation
         if(self.data_augmentation):
             # add gaussian noise
             src_pcd_input += (np.random.rand(src_pcd_input.shape[0],3) - 0.5) * self.augment_noise
@@ -152,11 +166,8 @@ class KITTIDataset(Dataset):
 
             # rotate the point cloud
             # euler_ab=np.random.rand(3)*np.pi*2 # anglez, angley, anglex
-            theta = np.random.uniform(0, 2*np.pi)
-            rot_ab = np.array([[np.cos(theta), np.sin(theta), 0],
-                                [-np.sin(theta),np.cos(theta), 0],
-                                [0, 0, 1]])
-            # euler_ab = np.ones(3)*np.pi
+            euler_ab=np.random.rand(3)*np.pi*2 # anglez, angley, anglex
+            rot_ab= Rotation.from_euler('zyx', euler_ab).as_matrix()
             if(np.random.rand(1)[0]>0.5):
                 src_pcd_input = np.dot(rot_ab, src_pcd_input.T).T
                 rot=np.matmul(rot,rot_ab.T)
@@ -174,38 +185,16 @@ class KITTIDataset(Dataset):
         else:
             scale = 1
 
-        block0[:,:3] = src_pcd_input
-        block1[:,:3] = tgt_pcd_input
-        src_pcd_refl = block0[:,3]
-        tgt_pcd_refl = block1[:,3]
-
-        # src_pcd_norm = src_pcd_input - src_pcd_input.min(0,keepdims=1)
-        # tgt_pcd_norm = tgt_pcd_input - tgt_pcd_input.min(0,keepdims=1)
-        self.point_valid_index = None
-
-        # get feats
-        # feats0 = np.ones((src_pcd_input.shape[0],1),dtype=np.float32)
-        # feats1 = np.ones((tgt_pcd_input.shape[0],1),dtype=np.float32)
-
-        # voxel down-sample the point clouds here
-        # print('block:',block0.shape)
-        sel0 = self.do_voxel_projection(block0,src_pcd_input,'sinput_src')
-        self.do_range_projection(src_pcd_input[sel0],src_pcd_refl[sel0],'src_range_image','src_px','src_py')
-        src_xyz = src_pcd_input[sel0]
-        # print('src',src_xyz.shape)
-
-        sel1 = self.do_voxel_projection(block1,tgt_pcd_input,'sinput_tgt')
-        self.do_range_projection(tgt_pcd_input[sel1],tgt_pcd_refl[sel1],'tgt_range_image','tgt_px','tgt_py')
-        tgt_xyz = tgt_pcd_input[sel1]
         # get correspondence
         tsfm = to_tsfm(rot, trans)
         
-        matching_inds = get_correspondences(to_o3d_pcd(src_xyz), to_o3d_pcd(tgt_xyz), tsfm, self.search_voxel_size * scale)
+        matching_inds = get_correspondences(to_o3d_pcd(src_pcd_input[sel0]), to_o3d_pcd(tgt_pcd_input[sel1]), tsfm, self.search_voxel_size * scale)
         if(matching_inds.size(0) < self.max_corr and self.split == 'train'):
             return self.__getitem__(np.random.choice(len(self.files),1)[0])
         # print('matching:',matching_inds.shape)
         # rot, trans = to_tensor(rot), to_tensor(trans)
         tsfm = to_tensor(tsfm)
+        
         self.data['correspondence'] = matching_inds
         self.data['tsfm'] = tsfm
         self.data['scale'] = scale
@@ -217,7 +206,6 @@ class KITTIDataset(Dataset):
 
         _, inds, inverse_map = sparse_quantize(pc, return_index=True,
                                               return_inverse=True)
-        # print(inds.shape)
         # todo: remove some voxels during training, 
         # so it is necessary to remove the point cloud corresponding to the voxel in this process
         # uses torchsparse to speed things up
@@ -240,7 +228,9 @@ class KITTIDataset(Dataset):
         # if self.point_valid_index.shape[0] > self.num_points :
         #   pass
 
-        coord_,feat_ = (points_xyz[inds],feat[inds])
+        coord_,feat_ = (points_xyz[self.point_valid_index != -1],
+                               feat[self.point_valid_index != -1]) \
+                        if self.point_valid_index is not None else (points_xyz,feat)
         # print('coord_:',coord_.shape)
         self.data[name] = SparseTensor(feats=feat_,coords=coord_)
         return inds
@@ -249,9 +239,9 @@ class KITTIDataset(Dataset):
     def do_range_projection(self, points_xyz, points_refl, name_img, name_px, name_py):
         H,W = self.range_size if self.range_size is not None else (64,2048)
 
-        # points_xyz,points_refl = (points_xyz[self.point_valid_index != -1],
-        #                           points_refl[self.point_valid_index != -1]) \
-        #              if self.point_valid_index is not None else (points_xyz,points_refl)
+        points_xyz,points_refl = (points_xyz[self.point_valid_index != -1],
+                                  points_refl[self.point_valid_index != -1]) \
+                     if self.point_valid_index is not None else (points_xyz,points_refl)
 
         depth = np.linalg.norm(points_xyz,2,axis=1)
 

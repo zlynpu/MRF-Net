@@ -23,9 +23,9 @@ if __name__ == '__main__':
         depth_image = image[0,1,:,:]
         plt.imsave('refl_image_data'+'.png', depth_image, cmap='inferno')
         print('image:',image.shape)
-        px = data['tgt_px']
+        # px = data['tgt_px']
         # print('px:',px.shape)
         # pcd = data['pcd_src']
-        sinput = data['sinput_src']
-        corres = data['correspondence']
-        rot = data['rot']
+        # sinput = data['sinput_src']
+        # corres = data['correspondence']
+        # rot = data['rot']
