@@ -11,9 +11,21 @@ from torchsparse.utils.quantize import sparse_quantize
 import torchsparse.nn.functional as F
 
 # Dataset parent class
+from scipy.linalg import expm, norm
 from dataset.collate import sparse_collate_fn
 from torch.utils.data import Dataset
 from lib.benchmark_utils import to_tsfm, to_o3d_pcd, get_correspondences, to_tensor
+
+def M(axis, theta):
+  return expm(np.cross(np.eye(3), axis / norm(axis) * theta))
+
+
+def sample_random_trans(pcd, randg, rotation_range=360):
+  T = np.eye(4)
+  R = M(randg.rand(3) - 0.5, rotation_range * np.pi / 180.0 * (randg.rand(1) - 0.5))
+  T[:3, :3] = R
+  T[:3, 3] = R.dot(-np.mean(pcd, axis=0))
+  return T
 
 class KITTIDataset(Dataset):
     """
@@ -25,7 +37,7 @@ class KITTIDataset(Dataset):
         'val': './configs/kitti/val_kitti.txt',
         'test': './configs/kitti/test_kitti.txt'
     }
-    def __init__(self,config,split,data_augmentation=True):
+    def __init__(self,config,split,data_augmentation=True,manual_seed=False):
         super(KITTIDataset,self).__init__()
         self.config = config
         self.root = os.path.join(config.root,'dataset')
@@ -43,6 +55,9 @@ class KITTIDataset(Dataset):
         self.augment_scale_max = config.augment_scale_max
         self.augment_scale_min = config.augment_scale_min
         self.max_corr = config.max_points
+        self.randg = np.random.RandomState()
+        if manual_seed:
+            self.reset_seed()
 
         # Initiate containers
         self.files = []
@@ -86,7 +101,7 @@ class KITTIDataset(Dataset):
                     curr_time = next_time + 1
 
         # remove bad pairs
-        if split=='test':
+        if split in ['test','val']:
             self.files.remove((8, 15, 58))
         print(f'Num_{split}: {len(self.files)}')
 
@@ -137,71 +152,94 @@ class KITTIDataset(Dataset):
         else:
             M2 = self.kitti_icp_cache[key]
 
-        # refined pose is denoted as tsfm
-        tsfm = M2
-        rot = tsfm[:3,:3]
-        trans = tsfm[:3,3][:,None]
-
         # get voxel and range image indices
         src_pcd_input = copy.deepcopy(xyz0)
         tgt_pcd_input = copy.deepcopy(xyz1)
         src_pcd_refl = block0[:,3]
         tgt_pcd_refl = block1[:,3]
 
-        self.point_valid_index = None
-        sel0 = self.do_voxel_projection(block0,src_pcd_input,'sinput_src')
-        self.data['sel0'] = sel0
-        self.do_range_projection(src_pcd_input,src_pcd_refl,'src_range_image','src_px','src_py')
+        # self.point_valid_index = None
+        # sel0 = self.do_voxel_projection(block0,src_pcd_input,'sinput_src')
+        # self.data['sel0'] = sel0
+        # self.do_range_projection(src_pcd_input,src_pcd_refl,sel0,'src_range_image','src_px','src_py')
 
-        self.point_valid_index = None
-        sel1 = self.do_voxel_projection(block1,tgt_pcd_input,'sinput_tgt')
-        self.data['sel1'] = sel1
-        self.do_range_projection(tgt_pcd_input,tgt_pcd_refl,'tgt_range_image','tgt_px','tgt_py')
+        # self.point_valid_index = None
+        # sel1 = self.do_voxel_projection(block1,tgt_pcd_input,'sinput_tgt')
+        # self.data['sel1'] = sel1
+        # self.do_range_projection(tgt_pcd_input,tgt_pcd_refl,sel1,'tgt_range_image','tgt_px','tgt_py')
 
         # add data augmentation
+        matching_search_voxel_size = self.search_voxel_size
+        scale = 1
         if(self.data_augmentation):
             # add gaussian noise
-            src_pcd_input += (np.random.rand(src_pcd_input.shape[0],3) - 0.5) * self.augment_noise
-            tgt_pcd_input += (np.random.rand(tgt_pcd_input.shape[0],3) - 0.5) * self.augment_noise
+            # src_pcd_input += (np.random.rand(src_pcd_input.shape[0],3) - 0.5) * self.augment_noise
+            # tgt_pcd_input += (np.random.rand(tgt_pcd_input.shape[0],3) - 0.5) * self.augment_noise
 
             # rotate the point cloud
             # euler_ab=np.random.rand(3)*np.pi*2 # anglez, angley, anglex
-            euler_ab=np.random.rand(3)*np.pi*2 # anglez, angley, anglex
-            rot_ab= Rotation.from_euler('zyx', euler_ab).as_matrix()
-            if(np.random.rand(1)[0]>0.5):
-                src_pcd_input = np.dot(rot_ab, src_pcd_input.T).T
-                rot=np.matmul(rot,rot_ab.T)
-            else:
-                tgt_pcd_input = np.dot(rot_ab, tgt_pcd_input.T).T
-                rot=np.matmul(rot_ab,rot)
-                trans=np.matmul(rot_ab,trans)
+            # euler_ab=np.random.rand(3)*np.pi*2 # anglez, angley, anglex
+            # rot_ab= Rotation.from_euler('zyx', euler_ab).as_matrix()
+            # if(np.random.rand(1)[0]>0.5):
+            #     src_pcd_input = np.dot(rot_ab, src_pcd_input.T).T
+            #     rot=np.matmul(rot,rot_ab.T)
+            # else:
+            #     tgt_pcd_input = np.dot(rot_ab, tgt_pcd_input.T).T
+            #     rot=np.matmul(rot_ab,rot)
+            #     trans=np.matmul(rot_ab,trans)
             
-            # scale the pcd
-            scale = self.augment_scale_min + (self.augment_scale_max - self.augment_scale_min) * random.random()
-            src_pcd_input = src_pcd_input * scale
-            tgt_pcd_input = tgt_pcd_input * scale
-            trans = scale * trans
+            # # scale the pcd
+            # scale = self.augment_scale_min + (self.augment_scale_max - self.augment_scale_min) * random.random()
+            # src_pcd_input = src_pcd_input * scale
+            # tgt_pcd_input = tgt_pcd_input * scale
+            # trans = scale * trans
+            T0 = sample_random_trans(src_pcd_input, self.randg, 45)
+            T1 = sample_random_trans(tgt_pcd_input, self.randg, 45)
+            trans = T1 @ M2 @ np.linalg.inv(T0)
+
+            src_pcd_input = self.apply_transform(src_pcd_input, T0)
+            tgt_pcd_input = self.apply_transform(tgt_pcd_input, T1)
+            # matching_search_voxel_size = self.search_voxel_size
+            if random.random() < 0.95:
+                scale = self.augment_scale_min + (self.augment_scale_max - self.augment_scale_min) * random.random()
+                matching_search_voxel_size *= scale
+                trans[:,3] *= scale
+                src_pcd_input = scale * src_pcd_input
+                tgt_pcd_input = scale * tgt_pcd_input
 
         else:
-            scale = 1
-
-        # get correspondence
-        tsfm = to_tsfm(rot, trans)
+            trans = M2
         
-        matching_inds = get_correspondences(to_o3d_pcd(src_pcd_input[sel0]), to_o3d_pcd(tgt_pcd_input[sel1]), tsfm, self.search_voxel_size * scale)
+        block0[:,:3] = src_pcd_input
+        block1[:,:3] = tgt_pcd_input
+
+        self.point_valid_index = None
+        sel0 = self.do_voxel_projection(block0[:,3],src_pcd_input,'sinput_src')
+        self.data['sel0'] = sel0
+        self.do_range_projection(xyz0,src_pcd_refl,sel0,'src_range_image','src_px','src_py')
+
+        self.point_valid_index = None
+        sel1 = self.do_voxel_projection(block1[:,3],tgt_pcd_input,'sinput_tgt')
+        self.data['sel1'] = sel1
+        self.do_range_projection(xyz1,tgt_pcd_refl,sel1,'tgt_range_image','tgt_px','tgt_py')
+        
+        # get correspondence
+                
+        matching_inds = get_correspondences(to_o3d_pcd(src_pcd_input[sel0]), to_o3d_pcd(tgt_pcd_input[sel1]), trans, matching_search_voxel_size)
         if(matching_inds.size(0) < self.max_corr and self.split == 'train'):
             return self.__getitem__(np.random.choice(len(self.files),1)[0])
         # print('matching:',matching_inds.shape)
         # rot, trans = to_tensor(rot), to_tensor(trans)
-        tsfm = to_tensor(tsfm)
+        trans = to_tensor(trans)
         
         self.data['correspondence'] = matching_inds
-        self.data['tsfm'] = tsfm
+        self.data['tsfm'] = trans
         self.data['scale'] = scale
         return self.data
 
     def do_voxel_projection(self,feat,points_xyz,name):
 
+        feat_one = torch.ones((feat.shape[0],1))
         pc = np.round(points_xyz / self.voxel_size).astype(np.int32)
 
         _, inds, inverse_map = sparse_quantize(pc, return_index=True,
@@ -228,21 +266,23 @@ class KITTIDataset(Dataset):
         # if self.point_valid_index.shape[0] > self.num_points :
         #   pass
 
-        coord_,feat_ = (points_xyz[self.point_valid_index != -1],
-                               feat[self.point_valid_index != -1]) \
-                        if self.point_valid_index is not None else (points_xyz,feat)
+        # coord_,feat_ = (points_xyz[self.point_valid_index != -1],
+        #                        feat[self.point_valid_index != -1]) \
+        #                 if self.point_valid_index is not None else (points_xyz,feat)
+        coord_,feat_ = (points_xyz[inds],feat_one[inds])
         # print('coord_:',coord_.shape)
         self.data[name] = SparseTensor(feats=feat_,coords=coord_)
         return inds
         
             
-    def do_range_projection(self, points_xyz, points_refl, name_img, name_px, name_py):
+    def do_range_projection(self, points_xyz, points_refl,sel, name_img, name_px, name_py):
         H,W = self.range_size if self.range_size is not None else (64,2048)
 
-        points_xyz,points_refl = (points_xyz[self.point_valid_index != -1],
-                                  points_refl[self.point_valid_index != -1]) \
-                     if self.point_valid_index is not None else (points_xyz,points_refl)
+        # points_xyz,points_refl = (points_xyz[self.point_valid_index != -1],
+        #                           points_refl[self.point_valid_index != -1]) \
+        #              if self.point_valid_index is not None else (points_xyz,points_refl)
 
+        points_xyz, points_refl = (points_xyz[sel],points_refl[sel])
         depth = np.linalg.norm(points_xyz,2,axis=1)
 
         # get scan components
@@ -310,6 +350,9 @@ class KITTIDataset(Dataset):
         self.data[name_px] = px
         self.data[name_py] = py
         
+    def reset_seed(self, seed=0):
+        logging.info(f"Resetting the data loader seed to {seed}")
+        self.randg.seed(seed)
 
     def apply_transform(self, pts, trans):
         R = trans[:3, :3]

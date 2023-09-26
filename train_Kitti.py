@@ -1,7 +1,7 @@
 # coding = utf-8
 import open3d as o3d  # prevent loading error
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 import sys
 import json
 import logging

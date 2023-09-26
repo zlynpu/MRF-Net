@@ -74,14 +74,14 @@ net_arg.add_argument('--best_val_metric', type=str, default='rte',help='[feat_ma
 opt_arg = add_argument_group('Optimizer')
 opt_arg.add_argument('--optimizer', type=str, default='SGD')
 opt_arg.add_argument('--max_epoch', type=int, default=200)
-opt_arg.add_argument('--lr', type=float, default=1e-1)
+opt_arg.add_argument('--lr', type=float, default=0.1)
 opt_arg.add_argument('--momentum', type=float, default=0.8)
 opt_arg.add_argument('--sgd_momentum', type=float, default=0.9)
 opt_arg.add_argument('--sgd_dampening', type=float, default=0.1)
 opt_arg.add_argument('--adam_beta1', type=float, default=0.9)
 opt_arg.add_argument('--adam_beta2', type=float, default=0.999)
 opt_arg.add_argument('--weight_decay', type=float, default=1e-4)
-opt_arg.add_argument('--iter_size', type=int, default=1, help='accumulate gradient')
+opt_arg.add_argument('--iter_size', type=int, default=2, help='accumulate gradient')
 opt_arg.add_argument('--bn_momentum', type=float, default=0.05)
 opt_arg.add_argument('--exp_gamma', type=float, default=0.99)
 opt_arg.add_argument('--scheduler', type=str, default='ExpLR')
@@ -100,7 +100,7 @@ misc_arg.add_argument('--nn_max_n',type=int,default=500,help='The maximum number
 data_arg = add_argument_group('Data')
 # ----------------------------------------------------------------------- #
 # Kitti  ---- |output path|
-output_kitti = "outputs_kitti/exp2"
+output_kitti = "outputs_kitti/exp6"
 logging_arg.add_argument('--out_dir', type=str, default=output_kitti)
 
 #Kitti  ----  |resume dir|

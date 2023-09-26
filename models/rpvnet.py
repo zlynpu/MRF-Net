@@ -65,7 +65,7 @@ class RPVnet(nn.Module):
 
         ''' voxel branch '''
         self.voxel_stem = nn.Sequential(
-            spnn.Conv3d(4, self.cs[0], kernel_size=3, stride=1),
+            spnn.Conv3d(1, self.cs[0], kernel_size=3, stride=1),
             spnn.BatchNorm(self.cs[0]), spnn.ReLU(True),
             spnn.Conv3d(self.cs[0], self.cs[0], kernel_size=3, stride=1),
             spnn.BatchNorm(self.cs[0]), spnn.ReLU(True))
@@ -136,7 +136,7 @@ class RPVnet(nn.Module):
         self.point_stem = nn.ModuleList([
             # 32
             nn.Sequential(
-                nn.Linear(4,self.cs[0]),
+                nn.Linear(1,self.cs[0]),
                 nn.BatchNorm1d(self.cs[0]),
                 nn.ReLU(True),
             ),
@@ -247,4 +247,4 @@ class RPVnet(nn.Module):
         # print("Layer 3 - NaN check:", torch.isnan(range8).any())
         if torch.isnan(out).any():
             print('there is nan in the end!!')
-        return out
+        return out / torch.norm(out, p=2, dim=1, keepdim=True)

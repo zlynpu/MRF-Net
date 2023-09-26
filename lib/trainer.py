@@ -11,6 +11,7 @@ import json
 
 import torch
 import torch.optim as optim
+import torch.nn as nn
 import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 
@@ -69,12 +70,19 @@ class AlignmentTrainer:
 
     self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # self.device = torch.device('cpu')
-    self.optimizer = getattr(optim, config.optimizer)(
-        model.parameters(),
-        lr=config.lr,
-        momentum=config.momentum,
-        weight_decay=config.weight_decay)
-
+    if config.optimizer == 'SGD':
+      self.optimizer = getattr(optim, config.optimizer)(
+          model.parameters(),
+          lr=config.lr,
+          momentum=config.momentum,
+          weight_decay=config.weight_decay)
+    elif config.optimizer == 'Adam':
+      self.optimizer = getattr(optim, config.optimizer)(
+          model.parameters(),
+          lr=config.lr,
+          betas=(config.adam_beta1,config.adam_beta2),
+          weight_decay=config.weight_decay)
+    
     self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, config.exp_gamma)
 
     self.start_epoch = 1
@@ -236,7 +244,7 @@ class ContrastiveLossTrainer(AlignmentTrainer):
   def _valid_epoch(self):
     # Change the network to evaluation mode
     self.model.eval()
-    # self.val_data_loader.dataset.reset_seed(0)
+    self.val_data_loader.dataset.reset_seed(0)
     num_data = 0
     hit_ratio_meter, feat_match_ratio, loss_meter, rte_meter, rre_meter,success_meter = AverageMeter(
     ), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(),AverageMeter()
@@ -276,7 +284,7 @@ class ContrastiveLossTrainer(AlignmentTrainer):
 
       matching_timer.tic()
       xyz0, xyz1, T_gt = sinput_src.C, sinput_tgt.C, input_dict['tsfm']
-      xyz0_corr, xyz1_corr = self.find_corr(xyz0[sel0,:3], xyz1[sel1,:3], F0[sel0], F1[sel1], subsample_size=5000)
+      xyz0_corr, xyz1_corr = self.find_corr(xyz0[:,:3], xyz1[:,:3], F0, F1, subsample_size=5000)
       T_est = te.est_quad_linear_robust(xyz0_corr, xyz1_corr)
 
       loss = corr_dist(T_est, T_gt, xyz0[:,:3], xyz1[:,:3], weight=None)
@@ -450,8 +458,8 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
         pos_pairs = input_dict['correspondence']
         
         pos_loss, neg_loss = self.contrastive_hardest_negative_loss(
-            F0[sel0],
-            F1[sel1],
+            F0,
+            F1,
             pos_pairs,
             num_pos=self.config.num_pos_per_batch * self.config.batch_size,
             num_hn_samples=self.config.num_hn_samples_per_batch *
@@ -462,6 +470,7 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
         loss = pos_loss + self.neg_weight * neg_loss
         # print(loss)
         loss.backward()
+        # nn.utils.clip_grad_norm(self.model.parameters, 3, norm_type=2)
 
         batch_loss += loss.item()
         batch_pos_loss += pos_loss.item()
