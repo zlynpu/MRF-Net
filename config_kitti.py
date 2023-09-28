@@ -20,7 +20,7 @@ logging_arg = add_argument_group('Logging')
 trainer_arg = add_argument_group('Trainer')
 trainer_arg.add_argument('--trainer', type=str, default='HardestContrastiveLossTrainer')
 trainer_arg.add_argument('--save_freq_epoch', type=int, default=1)
-trainer_arg.add_argument('--batch_size', type=int, default=1)
+trainer_arg.add_argument('--batch_size', type=int, default=2)
 trainer_arg.add_argument('--val_batch_size', type=int, default=1)
 
 # Hard negative mining
@@ -63,8 +63,8 @@ trainer_arg.add_argument('--triplet_num_rand', type=int, default=1024)
 
 # dNetwork specific configurations
 net_arg = add_argument_group('Network')
-net_arg.add_argument('--model', type=str, default='RPVnet')
-net_arg.add_argument('--cs', type=list, default=[32,64,128,256,256,128,128,64,32], help='Feature dimension')
+net_arg.add_argument('--model', type=str, default='minkunet')
+net_arg.add_argument('--cs', type=list, default=[32,64,128,256,128,64,64,64], help='Feature dimension')
 net_arg.add_argument('--cr', type=int, default=1)
 # net_arg.add_argument('--normalize_feature', type=str2bool, default=True)
 net_arg.add_argument('--dist_type', type=str, default='L2')
@@ -81,7 +81,7 @@ opt_arg.add_argument('--sgd_dampening', type=float, default=0.1)
 opt_arg.add_argument('--adam_beta1', type=float, default=0.9)
 opt_arg.add_argument('--adam_beta2', type=float, default=0.999)
 opt_arg.add_argument('--weight_decay', type=float, default=1e-4)
-opt_arg.add_argument('--iter_size', type=int, default=2, help='accumulate gradient')
+opt_arg.add_argument('--iter_size', type=int, default=1, help='accumulate gradient')
 opt_arg.add_argument('--bn_momentum', type=float, default=0.05)
 opt_arg.add_argument('--exp_gamma', type=float, default=0.99)
 opt_arg.add_argument('--scheduler', type=str, default='ExpLR')
@@ -100,7 +100,7 @@ misc_arg.add_argument('--nn_max_n',type=int,default=500,help='The maximum number
 data_arg = add_argument_group('Data')
 # ----------------------------------------------------------------------- #
 # Kitti  ---- |output path|
-output_kitti = "outputs_kitti/exp6"
+output_kitti = "outputs_kitti/exp_minkunet"
 logging_arg.add_argument('--out_dir', type=str, default=output_kitti)
 
 #Kitti  ----  |resume dir|

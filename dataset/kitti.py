@@ -214,12 +214,12 @@ class KITTIDataset(Dataset):
         block1[:,:3] = tgt_pcd_input
 
         self.point_valid_index = None
-        sel0 = self.do_voxel_projection(block0[:,3],src_pcd_input,'sinput_src')
+        sel0 = self.do_voxel_projection(block0,src_pcd_input,'sinput_src')
         self.data['sel0'] = sel0
         self.do_range_projection(xyz0,src_pcd_refl,sel0,'src_range_image','src_px','src_py')
 
         self.point_valid_index = None
-        sel1 = self.do_voxel_projection(block1[:,3],tgt_pcd_input,'sinput_tgt')
+        sel1 = self.do_voxel_projection(block1,tgt_pcd_input,'sinput_tgt')
         self.data['sel1'] = sel1
         self.do_range_projection(xyz1,tgt_pcd_refl,sel1,'tgt_range_image','tgt_px','tgt_py')
         

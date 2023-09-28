@@ -1,5 +1,6 @@
 import logging
-import models.rpvnet as RPVnet
+from models.rpvnet import RPVnet
+from models.minkunet import minkunet
 
 
 MODELS = []
@@ -10,6 +11,7 @@ def add_models(module):
 
 
 add_models(RPVnet)
+add_models(minkunet)
 
 
 def load_model(name):

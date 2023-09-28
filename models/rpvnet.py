@@ -247,4 +247,9 @@ class RPVnet(nn.Module):
         # print("Layer 3 - NaN check:", torch.isnan(range8).any())
         if torch.isnan(out).any():
             print('there is nan in the end!!')
-        return out / torch.norm(out, p=2, dim=1, keepdim=True)
+
+        out_norm = out / torch.norm(out, p=2, dim=1, keepdim=True)
+
+        if torch.isnan(out_norm).any():
+            print('there is nan in the end!!')
+        return out_norm

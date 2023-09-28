@@ -15,7 +15,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 
-from models.rpvnet import RPVnet 
+from models import load_model 
 import util.transform_estimation as te
 from lib.metrics import pdist, corr_dist
 from lib.timer import Timer, AverageMeter
@@ -36,9 +36,9 @@ class AlignmentTrainer:
     num_feats = 1  # occupancy only for 3D Match dataset. For ScanNet, use RGB 3 channels.
 
     # Model initialization
-    # Model = load_model(config.model)
+    Model = load_model(config.model)
 
-    model = RPVnet(
+    model =Model(
         vsize=config.voxel_size,
         cr=config.cr,
         cs=config.cs
