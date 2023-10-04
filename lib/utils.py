@@ -124,49 +124,6 @@ def natural_key(string_):
     return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]
 
 
-# class PointTensor(SparseTensor):
-#     def __init__(
-#         self,
-#         feats: torch.Tensor,
-#         coords: torch.Tensor,
-#         stride: Union[int, Tuple[int, ...]] = 1,
-#     ):
-#         super().__init__(feats=feats, coords=coords, stride=stride)
-#         self._caches.idx_query = dict()
-#         self._caches.idx_query_devox = dict()
-#         self._caches.weights_devox = dict()
-# class PointTensor:
-
-#     def __init__(self, feats, coords, idx_query=None, weights=None):
-#         self.F = feats
-#         self.C = coords
-#         self.idx_query = idx_query if idx_query is not None else {}
-#         self.weights = weights if weights is not None else {}
-#         self.additional_features = {}
-#         self.additional_features['idx_query'] = {}
-#         self.additional_features['counts'] = {}
-
-#     def cuda(self):
-#         self.F = self.F.cuda()
-#         self.C = self.C.cuda()
-#         return self
-
-#     def detach(self):
-#         self.F = self.F.detach()
-#         self.C = self.C.detach()
-#         return self
-
-#     def to(self, device, non_blocking=True):
-#         self.F = self.F.to(device, non_blocking=non_blocking)
-#         self.C = self.C.to(device, non_blocking=non_blocking)
-#         return self
-
-#     def __add__(self, other):
-#         tensor = PointTensor(self.F + other.F, self.C, self.idx_query,
-#                              self.weights)
-#         tensor.additional_features = self.additional_features
-#         return tensor
-    
 
 def initial_voxelize(z: PointTensor, after_res) -> SparseTensor:
 
@@ -193,10 +150,11 @@ def initial_voxelize(z: PointTensor, after_res) -> SparseTensor:
 
     new_tensor = SparseTensor(inserted_feat, inserted_coords, 1)
 
-    new_tensor.cmaps.setdefault((1,1,1), new_tensor.coords)
+    new_tensor.cmaps.setdefault(new_tensor.stride, new_tensor.coords)
 
-    z.additional_features['idx_query'][(1,1,1)] = idx_query
-    z.additional_features['counts'][(1,1,1)] = counts
+    z.additional_features['idx_query'][1] = idx_query
+    z.additional_features['counts'][1] = counts
+    z.C = new_float_coord
 
     return new_tensor.to(z.F.device)
 
@@ -207,13 +165,15 @@ def point_to_voxel(x: SparseTensor, z: PointTensor) -> SparseTensor:
 
         pc_hash = F.sphash(
             torch.cat([
-                torch.round(z.C[:, :3] / x.s[0]).int(),
+                torch.round(z.C[:, :3] / x.s[0]).int() * x.s[0],
                 z.C[:, -1].int().view(-1, 1)
             ], 1))
         sparse_hash = F.sphash(x.C)
 
         idx_query = F.sphashquery(pc_hash, sparse_hash)
         counts = F.spcount(idx_query.int(), x.C.shape[0])
+        z.additional_features['idx_query'][x.s] = idx_query
+        z.additional_features['counts'][x.s] = counts
 
     else:
         idx_query = z.additional_features['idx_query'][x.s]
@@ -237,7 +197,7 @@ def voxel_to_point(x: SparseTensor,z: PointTensor, nearest=False) -> torch.Tenso
         # kernel hash, which generates an encoding of the current coordinate including eight offsets
         old_hash = F.sphash(
             torch.cat([
-                torch.round(z.C[:, :3] / x.s[0]).int(),
+                torch.round(z.C[:, :3] / x.s[0]).int() * x.s[0],
                 z.C[:, -1].int().view(-1, 1)
             ], 1), off)
 
@@ -257,9 +217,9 @@ def voxel_to_point(x: SparseTensor,z: PointTensor, nearest=False) -> torch.Tenso
 
         new_feat = F.spdevoxelize(x.F, idx_query, weights)
 
-        if x.s == (1,1,1):
-            z.idx_query[x.s] = idx_query
-            z.weights[x.s] = weights
+        # if x.s == (1,1,1):
+        z.idx_query[x.s] = idx_query
+        z.weights[x.s] = weights
     else:
         new_feat = F.spdevoxelize(x.F, z.idx_query.get(x.s), z.weights.get(x.s))
 

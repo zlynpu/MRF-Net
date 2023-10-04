@@ -33,12 +33,13 @@ class AlignmentTrainer:
       data_loader,
       val_data_loader=None,
   ):
-    num_feats = 1  # occupancy only for 3D Match dataset. For ScanNet, use RGB 3 channels.
+    num_feats = 4  # occupancy only for 3D Match dataset. For ScanNet, use RGB 3 channels.
 
     # Model initialization
     Model = load_model(config.model)
 
     model =Model(
+        num_feats,
         vsize=config.voxel_size,
         cr=config.cr,
         cs=config.cs
@@ -262,7 +263,7 @@ class ContrastiveLossTrainer(AlignmentTrainer):
       # pairs consist of (xyz1 index, xyz0 index)
       feat_timer.tic()
       sinput_src = input_dict['sinput_src'].to(self.device)
-      # print(sinput_src.C)
+      # print(sinput_src.F)
       sinput_tgt = input_dict['sinput_tgt'].to(self.device)
 
       src_image = input_dict['src_range_image'].to(self.device)
@@ -277,17 +278,18 @@ class ContrastiveLossTrainer(AlignmentTrainer):
       tgt_py = [t_y.to(self.device) for t_y in tgt_py]
               
       F0 = self.model(sinput_src,src_image,src_py,src_px)
+      # print('out:',F0)
       F1 = self.model(sinput_tgt,tgt_image,tgt_py,tgt_px)
       sel0 = input_dict['sel0'].tolist()
       sel1 = input_dict['sel1'].tolist()
       feat_timer.toc()
 
       matching_timer.tic()
-      xyz0, xyz1, T_gt = sinput_src.C, sinput_tgt.C, input_dict['tsfm']
-      xyz0_corr, xyz1_corr = self.find_corr(xyz0[:,:3], xyz1[:,:3], F0, F1, subsample_size=5000)
+      xyz0, xyz1, T_gt = input_dict['raw_pcd_src'], input_dict['raw_pcd_tgt'], input_dict['tsfm']
+      xyz0_corr, xyz1_corr = self.find_corr(xyz0, xyz1, F0, F1, subsample_size=5000)
       T_est = te.est_quad_linear_robust(xyz0_corr, xyz1_corr)
 
-      loss = corr_dist(T_est, T_gt, xyz0[:,:3], xyz1[:,:3], weight=None)
+      loss = corr_dist(T_est, T_gt, xyz0, xyz1, weight=None)
       # print(loss)
       loss_meter.update(loss)
 
@@ -451,6 +453,7 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
         tgt_py = [t_y.to(self.device) for t_y in tgt_py]
                 
         F0 = self.model(sinput_src,src_image,src_py,src_px)
+        # print(F0)
         F1 = self.model(sinput_tgt,tgt_image,tgt_py,tgt_px)
         
         sel0 = input_dict['sel0'].tolist()

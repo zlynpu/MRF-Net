@@ -63,66 +63,38 @@ class ResidualBlock(nn.Module):
 
 class DownVoxelStage(nn.Sequential):
     def __init__(self,in_channels,out_channels,
-                 b_kernel_size=3,b_stride=2,b_dilation=1,
+                 b_kernel_size=2,b_stride=2,b_dilation=1,
                  kernel_size=3, stride=1, dilation=1
                  ):
         module = [
-            BasicConvolutionBlock(in_channels,out_channels,b_kernel_size,
+            BasicConvolutionBlock(in_channels,in_channels,b_kernel_size,
                              b_stride,b_dilation),
-            ResidualBlock(out_channels,out_channels,kernel_size,
+            ResidualBlock(in_channels,out_channels,kernel_size,
                           stride,dilation),
-            spnn.ReLU(True)
-            # ResidualBlock(out_channels, out_channels, kernel_size,
-            #               stride, dilation)
+            ResidualBlock(out_channels, out_channels, kernel_size,
+                          stride, dilation)
         ]
         super(DownVoxelStage,self).__init__(*module)
 
 class UpVoxelStage(nn.Module):
     def __init__(self, in_channels, out_channels,skip_channels,
-                 b_kernel_size=3, b_stride=2,
+                 b_kernel_size=2, b_stride=2,
                  kernel_size=3, stride=1, dilation=1):
         super(UpVoxelStage, self).__init__()
 
-        self.bdb = BasicDeconvolutionBlock(in_channels+skip_channels, out_channels, b_kernel_size,
+        self.bdb = BasicDeconvolutionBlock(in_channels, out_channels, b_kernel_size,
                                   b_stride)
         self.skip_res= nn.Sequential(
-            ResidualBlock(out_channels, out_channels, kernel_size,
+            ResidualBlock(out_channels+skip_channels, out_channels, kernel_size,
                           stride, dilation),
-            spnn.ReLU(True)
-            # ResidualBlock(out_channels, out_channels, kernel_size,
-            #               stride, dilation)
+            ResidualBlock(out_channels, out_channels, kernel_size,
+                          stride, dilation)
         )
 
     def forward(self,x,skip):
-        
-        out = torchsparse.cat([x,skip])
+
         out = self.bdb(x)
-        # out = torchsparse.cat([out,skip])
+        out = torchsparse.cat([out,skip])
         out = self.skip_res(out)
-
-        return out
-    
-class UpVoxelStage_withoutres(nn.Module):
-    def __init__(self, in_channels, out_channels,skip_channels,
-                 kernel_size=3, stride=2,
-                 dilation=1):
-        super(UpVoxelStage, self).__init__()
-
-        self.bdb = BasicDeconvolutionBlock(in_channels+skip_channels, out_channels, kernel_size,
-                                  stride)
-        # self.skip_res= nn.Sequential(
-        #     ResidualBlock(out_channels, out_channels, kernel_size,
-        #                   stride, dilation)#,
-        #     # ResidualBlock(out_channels, out_channels, kernel_size,
-        #     #               stride, dilation)
-        # )
-        self.relu = spnn.ReLU(True)
-    def forward(self,x,skip):
-        
-        out = torchsparse.cat([x,skip])
-        out = self.bdb(x)
-        out = self.relu(out)
-        # out = torchsparse.cat([out,skip])
-        # out = self.skip_res(out)
 
         return out

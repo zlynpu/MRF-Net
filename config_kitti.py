@@ -63,8 +63,10 @@ trainer_arg.add_argument('--triplet_num_rand', type=int, default=1024)
 
 # dNetwork specific configurations
 net_arg = add_argument_group('Network')
-net_arg.add_argument('--model', type=str, default='minkunet')
-net_arg.add_argument('--cs', type=list, default=[32,64,128,256,128,64,64,64], help='Feature dimension')
+net_arg.add_argument('--model', type=str, default='PointMinkUNet')
+cs = [32,64,128,256,128,64,64,64]
+# cs = [32,64,128,256,256,128,128,64,32]
+net_arg.add_argument('--cs', type=list, default=cs, help='Feature dimension')
 net_arg.add_argument('--cr', type=int, default=1)
 # net_arg.add_argument('--normalize_feature', type=str2bool, default=True)
 net_arg.add_argument('--dist_type', type=str, default='L2')
@@ -100,7 +102,7 @@ misc_arg.add_argument('--nn_max_n',type=int,default=500,help='The maximum number
 data_arg = add_argument_group('Data')
 # ----------------------------------------------------------------------- #
 # Kitti  ---- |output path|
-output_kitti = "outputs_kitti/exp_minkunet"
+output_kitti = "outputs_kitti/exp_pointminkunet_new"
 logging_arg.add_argument('--out_dir', type=str, default=output_kitti)
 
 #Kitti  ----  |resume dir|

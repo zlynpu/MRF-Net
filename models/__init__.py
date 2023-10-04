@@ -1,6 +1,8 @@
 import logging
-from models.rpvnet import RPVnet
-from models.minkunet import minkunet
+import models.rpvnet as rpvnet
+import models.minkunet as minkunet
+import models.segminkunet as segminkunet
+import models.pointminkunet as pointminkunet
 
 
 MODELS = []
@@ -10,8 +12,10 @@ def add_models(module):
   MODELS.extend([getattr(module, a) for a in dir(module) if 'Net' in a or 'MLP' in a])
 
 
-add_models(RPVnet)
+add_models(rpvnet)
 add_models(minkunet)
+add_models(segminkunet)
+add_models(pointminkunet)
 
 
 def load_model(name):

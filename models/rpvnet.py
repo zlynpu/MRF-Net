@@ -1,7 +1,7 @@
 import time
 
 from models.utils.rangeBrock import *
-from models.utils.voxelBlock import DownVoxelStage,UpVoxelStage
+from models.utils.voxelBlock_rpv import DownVoxelStage,UpVoxelStage
 from lib.utils import *
 
 import torch
@@ -52,10 +52,11 @@ class GFM(nn.Module):
         return r,p,v
 
 
-class RPVnet(nn.Module):
-    def __init__(self,vsize=0.05,**kwargs):
-        super(RPVnet, self).__init__()
+class RPVNet(nn.Module):
+    def __init__(self,num_feats,vsize=0.05,**kwargs):
+        super(RPVNet, self).__init__()
 
+        self.input_channel = num_feats
         self.vsize = vsize
         self.cr = kwargs.get('cr')
         self.cs = torch.Tensor(kwargs.get('cs'))
@@ -65,7 +66,7 @@ class RPVnet(nn.Module):
 
         ''' voxel branch '''
         self.voxel_stem = nn.Sequential(
-            spnn.Conv3d(1, self.cs[0], kernel_size=3, stride=1),
+            spnn.Conv3d(self.input_channel, self.cs[0], kernel_size=3, stride=1),
             spnn.BatchNorm(self.cs[0]), spnn.ReLU(True),
             spnn.Conv3d(self.cs[0], self.cs[0], kernel_size=3, stride=1),
             spnn.BatchNorm(self.cs[0]), spnn.ReLU(True))
@@ -136,7 +137,7 @@ class RPVnet(nn.Module):
         self.point_stem = nn.ModuleList([
             # 32
             nn.Sequential(
-                nn.Linear(1,self.cs[0]),
+                nn.Linear(self.input_channel,self.cs[0]),
                 nn.BatchNorm1d(self.cs[0]),
                 nn.ReLU(True),
             ),

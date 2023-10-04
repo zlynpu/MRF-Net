@@ -29,6 +29,8 @@ def sparse_collate_fn(inputs):
     sel0_batch = []
     sel1_batch = []
     tsfm_batch = []
+    src_pcd_batch = []
+    tgt_pcd_batch = []
     src_range_image_batch = []
     tgt_range_image_batch = []
     len_batch = []
@@ -49,6 +51,9 @@ def sparse_collate_fn(inputs):
         len_batch.append([N0, N1])
         tsfm_batch.append(input_data[batch_id]['tsfm'])
 
+        src_pcd_batch.append(torch.from_numpy(input_data[batch_id]['raw_pcd_src']))
+        tgt_pcd_batch.append(torch.from_numpy(input_data[batch_id]['raw_pcd_tgt']))
+
         src_range_image_batch.append(torch.from_numpy(input_data[batch_id]['src_range_image']))
         tgt_range_image_batch.append(torch.from_numpy(input_data[batch_id]['tgt_range_image']))
 
@@ -64,6 +69,8 @@ def sparse_collate_fn(inputs):
     output['sel0'] = torch.cat(sel0_batch,0).int()
     # print(output['sel0'].shape)
     output['sel1'] = torch.cat(sel1_batch,0).int()
+    output['raw_pcd_src'] = torch.cat(src_pcd_batch).float()
+    output['raw_pcd_tgt'] = torch.cat(tgt_pcd_batch).float()
     output['src_range_image'] = torch.stack(src_range_image_batch,0).float()
     # print(output['src_range_image'].shape)
     output['tgt_range_image'] = torch.stack(tgt_range_image_batch,0).float()

@@ -1,9 +1,10 @@
 # Basic libs
-import os, glob, random, copy
+import os, glob, random, copy, sys
 import numpy as np
 import open3d
 import torch
 import logging
+sys.path.append(os.path.abspath("/home/huile/zhangliyuan/Code/MRFNet"))
 from scipy.spatial.transform import Rotation
 
 from torchsparse import SparseTensor
@@ -33,9 +34,9 @@ class KITTIDataset(Dataset):
     Then we get correspondence, and voxelise them, 
     """
     DATA_FILES = {
-        'train': './configs/kitti/train_kitti.txt',
-        'val': './configs/kitti/val_kitti.txt',
-        'test': './configs/kitti/test_kitti.txt'
+        'train': '/home/huile/zhangliyuan/Code/MRFNet/configs/kitti/train_kitti.txt',
+        'val': '/home/huile/zhangliyuan/Code/MRFNet/configs/kitti/val_kitti.txt',
+        'test': '/home/huile/zhangliyuan/Code/MRFNet/configs/kitti/test_kitti.txt'
     }
     def __init__(self,config,split,data_augmentation=True,manual_seed=False):
         super(KITTIDataset,self).__init__()
@@ -213,14 +214,19 @@ class KITTIDataset(Dataset):
         block0[:,:3] = src_pcd_input
         block1[:,:3] = tgt_pcd_input
 
+        src_xyz_norm = src_pcd_input - src_pcd_input.min(0,keepdims=1)
+        tgt_xyz_norm = tgt_pcd_input - tgt_pcd_input.min(0,keepdims=1)
+
         self.point_valid_index = None
-        sel0 = self.do_voxel_projection(block0,src_pcd_input,'sinput_src')
+        sel0 = self.do_voxel_projection(block0,src_xyz_norm,'sinput_src')
         self.data['sel0'] = sel0
+        self.data['raw_pcd_src'] = src_pcd_input[sel0]
         self.do_range_projection(xyz0,src_pcd_refl,sel0,'src_range_image','src_px','src_py')
 
         self.point_valid_index = None
-        sel1 = self.do_voxel_projection(block1,tgt_pcd_input,'sinput_tgt')
+        sel1 = self.do_voxel_projection(block1,tgt_xyz_norm,'sinput_tgt')
         self.data['sel1'] = sel1
+        self.data['raw_pcd_tgt'] = tgt_pcd_input[sel1]
         self.do_range_projection(xyz1,tgt_pcd_refl,sel1,'tgt_range_image','tgt_px','tgt_py')
         
         # get correspondence
@@ -269,7 +275,7 @@ class KITTIDataset(Dataset):
         # coord_,feat_ = (points_xyz[self.point_valid_index != -1],
         #                        feat[self.point_valid_index != -1]) \
         #                 if self.point_valid_index is not None else (points_xyz,feat)
-        coord_,feat_ = (points_xyz[inds],feat_one[inds])
+        coord_,feat_ = (points_xyz[inds],feat[inds])
         # print('coord_:',coord_.shape)
         self.data[name] = SparseTensor(feats=feat_,coords=coord_)
         return inds
