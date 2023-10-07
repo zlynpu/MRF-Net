@@ -80,7 +80,7 @@ class Block4(nn.Module):
 
         self.upscale = nn.PixelShuffle(upscale_factor=upscale_factor)
 
-        self.conv1 = nn.Conv2d(in_channels//(upscale_factor**2) + skip_channels, out_channels, (3, 3), padding=1)
+        self.conv1 = nn.Conv2d((in_channels + skip_channels)//(upscale_factor**2), out_channels, (3, 3), padding=1)
         self.act1 = nn.LeakyReLU(True)
         self.bn1 = nn.BatchNorm2d(out_channels)
 
@@ -100,15 +100,59 @@ class Block4(nn.Module):
         self.dropout = nn.Dropout2d(p=dropout_rate) if drop_out else nn.Identity()
 
     def forward(self,x,skip):
+        
+        upcat = torch.concat([x,skip],dim=1)
+        upcat = self.dropout(upcat)
+
+        infeat = self.upscale(upcat)
+        infeat = self.dropout(infeat)
+
+        cat1 = self.bn1(self.act1(self.conv1(infeat)))
+        cat2 = self.bn2(self.act2(self.conv2(cat1)))
+        cat3 = self.bn3(self.act3(self.conv3(cat2)))
+
+        cat = torch.concat([cat1,cat2,cat3],dim=1)
+
+        out = self.bn4(self.act4(self.conv4(cat)))
+        out =self.dropout(out)
+
+        return out
+    
+class Block_withoutskip(nn.Module):
+    def __init__(self, in_channels, out_channels,upscale_factor=2,dropout_rate=0.2,drop_out=True):
+        super(Block_withoutskip, self).__init__()
+
+        self.upscale = nn.PixelShuffle(upscale_factor=upscale_factor)
+
+        self.conv1 = nn.Conv2d(in_channels//(upscale_factor**2), out_channels, (3, 3), padding=1)
+        self.act1 = nn.LeakyReLU(True)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+
+        self.conv2 = nn.Conv2d(out_channels, out_channels, (3, 3), dilation=2, padding=2)
+        self.act2 = nn.LeakyReLU(True)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+
+        self.conv3 = nn.Conv2d(out_channels, out_channels, (2, 2), dilation=2, padding=1)
+        self.act3 = nn.LeakyReLU(True)
+        self.bn3 = nn.BatchNorm2d(out_channels)
+
+
+        self.conv4 = nn.Conv2d(out_channels * 3, out_channels, kernel_size=(1, 1))
+        self.act4 = nn.LeakyReLU(True)
+        self.bn4 = nn.BatchNorm2d(out_channels)
+
+        self.dropout = nn.Dropout2d(p=dropout_rate) if drop_out else nn.Identity()
+
+    def forward(self,x):
 
         x = self.upscale(x)
         x = self.dropout(x)
 
-        upcat = torch.concat([x,skip],dim=1)
-        upcat = self.dropout(upcat)
+        # upcat = torch.concat([x,skip],dim=1)
+        # upcat = self.dropout(upcat)
 
 
-        cat1 = self.bn1(self.act1(self.conv1(upcat)))
+        cat1 = self.bn1(self.act1(self.conv1(x)))
         cat2 = self.bn2(self.act2(self.conv2(cat1)))
         cat3 = self.bn3(self.act3(self.conv3(cat2)))
 

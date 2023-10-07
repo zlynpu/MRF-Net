@@ -63,7 +63,7 @@ trainer_arg.add_argument('--triplet_num_rand', type=int, default=1024)
 
 # dNetwork specific configurations
 net_arg = add_argument_group('Network')
-net_arg.add_argument('--model', type=str, default='PointMinkUNet')
+net_arg.add_argument('--model', type=str, default='MrfNet')
 cs = [32,64,128,256,128,64,64,64]
 # cs = [32,64,128,256,256,128,128,64,32]
 net_arg.add_argument('--cs', type=list, default=cs, help='Feature dimension')
@@ -102,7 +102,7 @@ misc_arg.add_argument('--nn_max_n',type=int,default=500,help='The maximum number
 data_arg = add_argument_group('Data')
 # ----------------------------------------------------------------------- #
 # Kitti  ---- |output path|
-output_kitti = "outputs_kitti/exp_pointminkunet_new"
+output_kitti = "outputs_kitti/exp_mrfnet_exp"
 logging_arg.add_argument('--out_dir', type=str, default=output_kitti)
 
 #Kitti  ----  |resume dir|

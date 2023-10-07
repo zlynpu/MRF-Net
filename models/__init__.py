@@ -3,6 +3,7 @@ import models.rpvnet as rpvnet
 import models.minkunet as minkunet
 import models.segminkunet as segminkunet
 import models.pointminkunet as pointminkunet
+import models.mrfnet as mrfnet
 
 
 MODELS = []
@@ -16,6 +17,7 @@ add_models(rpvnet)
 add_models(minkunet)
 add_models(segminkunet)
 add_models(pointminkunet)
+add_models(mrfnet)
 
 
 def load_model(name):
