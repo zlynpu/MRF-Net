@@ -63,12 +63,13 @@ class PointMinkUNet(nn.Module):
         self.gfm_stage2 = GFM(self.cs[1])
         self.gfm_stage4 = GFM(self.cs[2])
         self.gfm_stage8 = GFM(self.cs[3])
+        self.gfm_decoder = GFM(self.cs[5])
         self.gfm_final = GFM(self.output_channel)
 
         ''' voxel branch '''
         self.voxel_steam = BasicConvolutionBlock(self.input_channel,self.cs[0],kernel_size=5,
                              stride=1,dilation=1)
-        self.voxel_block = BasicConvolutionBlock(self.cs[0],self.cs[0],kernel_size=3,stride=1,dilation=1)
+        self.voxel_block = ResidualBlock(self.cs[0], self.cs[0], kernel_size=3, stride=1, dilation=1)
         # self.voxel_down1 = ResidualBlock(self.cs[0], self.cs[0], kernel_size=3, stride=1, dilation=1)
         self.voxel_down1 = DownVoxelStage(self.cs[0], self.cs[1],
                                       b_kernel_size=3, b_stride=2, b_dilation=1,
@@ -122,9 +123,14 @@ class PointMinkUNet(nn.Module):
                 nn.BatchNorm1d(self.cs[3]),
                 nn.ReLU(True),
             ),
+            nn.Sequential(
+                nn.Linear(self.cs[3], self.cs[5]),
+                nn.BatchNorm1d(self.cs[5]),
+                nn.ReLU(True),
+            ),
             # 32
             nn.Sequential(
-                nn.Linear(self.cs[3], self.output_channel),
+                nn.Linear(self.cs[5], self.output_channel),
                 nn.BatchNorm1d(self.output_channel),
                 nn.ReLU(True),
             ),
@@ -160,15 +166,18 @@ class PointMinkUNet(nn.Module):
         # downsample 8
         voxel_s8 = self.voxel_down3(v4)
         points.F = self.point_stem[3](points.F)
-        points, v8 = self.gfm_stage8(points,v8)
+        points, v8 = self.gfm_stage8(points,voxel_s8)
         # upsample
-        voxel_s4_tr = self.voxel_up1(voxel_s8)
+        voxel_s4_tr = self.voxel_up1(v8)
         voxel_s2_tr = self.voxel_up2(voxel_s4_tr, v4)
+        points.F = self.point_stem[4](points.F)
+        points, voxel_s2_tr = self.gfm_decoder(points,voxel_s2_tr)
+
         voxel_s1_tr = self.voxel_up3(voxel_s2_tr, v2)
         voxel_out = self.voxel_skip(voxel_s1_tr, voxel_s1)
         # final  decoder fusion
         voxel_out_final = self.voxel_final(voxel_out)
-        points.F = self.point_stem[4](points.F)
+        points.F = self.point_stem[5](points.F)
         points, voxel_out_final = self.gfm_final(points,voxel_out_final)
 
         out = self.final(points.F)

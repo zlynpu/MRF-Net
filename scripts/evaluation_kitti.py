@@ -150,9 +150,9 @@ def main(config,checkpoint):
 if __name__ == '__main__':
 
   dataset_path = "/home/huile/zhangliyuan/Dataset/Kitti"
-  output_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_pointminkunet_new"
+  output_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_pointminkunet_changeencoder"
 
-  checkpoint_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_pointminkunet_new/best_val_checkpoint_epoch_178_rte_0.15460243667126633.pth"
+  checkpoint_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_pointminkunet_changeencoder/best_val_checkpoint_epoch_184_rte_0.20181455346522853.pth"
 
 
   parser = argparse.ArgumentParser()

@@ -53,7 +53,7 @@ dataset:
   root: /home/huile/zhangliyuan/Dataset/Kitti
   voxel_size: 0.3
   max_voxels: 84000
-  batch_size: 2 
+  batch_size: 1 
   num_workers: 6
   range_size: 
       - 64

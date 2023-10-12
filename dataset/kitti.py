@@ -159,16 +159,6 @@ class KITTIDataset(Dataset):
         src_pcd_refl = block0[:,3]
         tgt_pcd_refl = block1[:,3]
 
-        # self.point_valid_index = None
-        # sel0 = self.do_voxel_projection(block0,src_pcd_input,'sinput_src')
-        # self.data['sel0'] = sel0
-        # self.do_range_projection(src_pcd_input,src_pcd_refl,sel0,'src_range_image','src_px','src_py')
-
-        # self.point_valid_index = None
-        # sel1 = self.do_voxel_projection(block1,tgt_pcd_input,'sinput_tgt')
-        # self.data['sel1'] = sel1
-        # self.do_range_projection(tgt_pcd_input,tgt_pcd_refl,sel1,'tgt_range_image','tgt_px','tgt_py')
-
         # add data augmentation
         matching_search_voxel_size = self.search_voxel_size
         scale = 1
@@ -178,22 +168,6 @@ class KITTIDataset(Dataset):
             # tgt_pcd_input += (np.random.rand(tgt_pcd_input.shape[0],3) - 0.5) * self.augment_noise
 
             # rotate the point cloud
-            # euler_ab=np.random.rand(3)*np.pi*2 # anglez, angley, anglex
-            # euler_ab=np.random.rand(3)*np.pi*2 # anglez, angley, anglex
-            # rot_ab= Rotation.from_euler('zyx', euler_ab).as_matrix()
-            # if(np.random.rand(1)[0]>0.5):
-            #     src_pcd_input = np.dot(rot_ab, src_pcd_input.T).T
-            #     rot=np.matmul(rot,rot_ab.T)
-            # else:
-            #     tgt_pcd_input = np.dot(rot_ab, tgt_pcd_input.T).T
-            #     rot=np.matmul(rot_ab,rot)
-            #     trans=np.matmul(rot_ab,trans)
-            
-            # # scale the pcd
-            # scale = self.augment_scale_min + (self.augment_scale_max - self.augment_scale_min) * random.random()
-            # src_pcd_input = src_pcd_input * scale
-            # tgt_pcd_input = tgt_pcd_input * scale
-            # trans = scale * trans
             T0 = sample_random_trans(src_pcd_input, self.randg, 45)
             T1 = sample_random_trans(tgt_pcd_input, self.randg, 45)
             trans = T1 @ M2 @ np.linalg.inv(T0)
@@ -288,7 +262,7 @@ class KITTIDataset(Dataset):
         #                           points_refl[self.point_valid_index != -1]) \
         #              if self.point_valid_index is not None else (points_xyz,points_refl)
 
-        points_xyz, points_refl = (points_xyz[sel],points_refl[sel])
+        # points_xyz, points_refl = (points_xyz[sel],points_refl[sel])
         depth = np.linalg.norm(points_xyz,2,axis=1)
 
         # get scan components
@@ -299,8 +273,6 @@ class KITTIDataset(Dataset):
         # get angles of all points
         yaw = -np.arctan2(scan_y, -scan_x)
         proj_x = 0.5 * (yaw / np.pi + 1.0)  # in [0.0, 1.0]
-
-
 
         new_raw = np.nonzero((proj_x[1:] < 0.2) * (proj_x[:-1] > 0.8))[0] + 1
         proj_y = np.zeros_like(proj_x)
@@ -317,8 +289,8 @@ class KITTIDataset(Dataset):
         proj_x = np.clip(proj_x, 0, W - 1)  
 
         # Correct Out-of-Range Indices
-        px = proj_x.copy()
-        py = proj_y.copy()
+        px = proj_x.copy()[sel]
+        py = proj_y.copy()[sel]
 
         proj_x = np.floor(proj_x).astype(np.int32)
         proj_y = np.floor(proj_y).astype(np.int32)

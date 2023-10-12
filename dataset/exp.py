@@ -21,11 +21,13 @@ if __name__ == '__main__':
     for batch,data in enumerate(data_loader):
         image = data['tgt_range_image']
         depth_image = image[0,1,:,:]
-        plt.imsave('refl_image_data'+'.png', depth_image, cmap='inferno')
+        plt.imsave('refl_image_data%d'%batch+'.png', depth_image, cmap='viridis')
         print('image:',image.shape)
-        # px = data['tgt_px']
-        # print('px:',px.shape)
+        px = data['tgt_px']
+        for batch, px_new in enumerate(px):
+            print('px:',px_new.shape)
         # pcd = data['pcd_src']
-        # sinput = data['sinput_src']
+        sinput = data['sinput_tgt']
+        print(sinput.C.shape)
         # corres = data['correspondence']
         # rot = data['rot']

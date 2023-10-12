@@ -63,36 +63,38 @@ class MrfNet(nn.Module):
 
         ''' GFM fuse'''
         self.gfm_stem = GFM(self.cs[0])
-        self.gfm_stage4 = GFM(self.cs[3])
-        self.gfm_stage6 = GFM(self.cs[5])
-        self.gfm_stage8 = GFM(self.output_channel)
+        self.gfm_stage8 = GFM(self.cs[3])
+        self.gfm_stage4 = GFM(self.cs[4])
+        self.gfm_stage2 = GFM(self.cs[5])
+        self.gfm_final = GFM(self.output_channel)
 
         ''' voxel branch '''
         self.voxel_steam = BasicConvolutionBlock(self.input_channel,self.cs[0],kernel_size=5,
                              stride=1,dilation=1)
-        self.voxel_down1 = ResidualBlock(self.cs[0], self.cs[0], kernel_size=3, stride=1, dilation=1)
-        self.voxel_down2 = DownVoxelStage(self.cs[0], self.cs[1],
+        self.voxel_block = ResidualBlock(self.cs[0], self.cs[0], kernel_size=3, stride=1, dilation=1)
+        # self.voxel_down1 = ResidualBlock(self.cs[0], self.cs[0], kernel_size=3, stride=1, dilation=1)
+        self.voxel_down1 = DownVoxelStage(self.cs[0], self.cs[1],
                                       b_kernel_size=3, b_stride=2, b_dilation=1,
                                       kernel_size=3, stride=1, dilation=1)
-        self.voxel_down3 = DownVoxelStage(self.cs[1], self.cs[2],
+        self.voxel_down2 = DownVoxelStage(self.cs[1], self.cs[2],
                                       b_kernel_size=3, b_stride=2, b_dilation=1,
                                       kernel_size=3, stride=1, dilation=1)
-        self.voxel_down4 = DownVoxelStage(self.cs[2], self.cs[3],
+        self.voxel_down3 = DownVoxelStage(self.cs[2], self.cs[3],
                                       b_kernel_size=3, b_stride=2, b_dilation=1,
                                       kernel_size=3, stride=1, dilation=1)
-        self.voxel_bottle = nn.Sequential(
+        self.voxel_up1 = nn.Sequential(
             BasicDeconvolutionBlock(self.cs[3], self.cs[4],
                                     kernel_size=3, stride=2),
             ResidualBlock(self.cs[4], self.cs[4],
                           kernel_size=3, stride=1)
         )
-        self.voxel_up1 = UpVoxelStage(self.cs[4],self.cs[5],self.cs[2],
+        self.voxel_up2 = UpVoxelStage(self.cs[4],self.cs[5],self.cs[2],
                                  b_kernel_size=3,b_stride=2,
                                  kernel_size=3,stride=1,dilation=1)
-        self.voxel_up2 = UpVoxelStage(self.cs[5],self.cs[6],self.cs[1],
+        self.voxel_up3 = UpVoxelStage(self.cs[5],self.cs[6],self.cs[1],
                                  b_kernel_size=3,b_stride=2,
                                  kernel_size=3,stride=1,dilation=1)
-        self.voxel_up3 = UpVoxelStage_withoutres(self.cs[6],self.cs[7],self.cs[0],
+        self.voxel_skip = UpVoxelStage_withoutres(self.cs[6],self.cs[7],self.cs[0],
                                                  kernel_size=3,stride=1)
         self.voxel_final = spnn.Conv3d(self.cs[7],self.output_channel,
                                        kernel_size=1,stride=1,bias=True)
@@ -111,9 +113,15 @@ class MrfNet(nn.Module):
                 nn.BatchNorm1d(self.cs[3]),
                 nn.ReLU(True),
             ),
+            # 128
+            nn.Sequential(
+                nn.Linear(self.cs[3], self.cs[4]),
+                nn.BatchNorm1d(self.cs[4]),
+                nn.ReLU(True),
+            ),
             # 64
             nn.Sequential(
-                nn.Linear(self.cs[3], self.cs[5]),
+                nn.Linear(self.cs[4], self.cs[5]),
                 nn.BatchNorm1d(self.cs[5]),
                 nn.ReLU(True),
             ),
@@ -125,41 +133,18 @@ class MrfNet(nn.Module):
             ),
         ])
         ''' range branch '''
-        self.range_stem = nn.Sequential(
-            ResContextBlock(2,self.cs[0]),
-            ResContextBlock(self.cs[0], self.cs[0]),
-            ResContextBlock(self.cs[0], self.cs[0]),
-            # Block1Res(cs[0],cs[0])
-        )
-        # nn.GatFusionModule
+        self.range_stem = ResContextBlock(2,self.cs[0])
+        self.range_block = ResContextBlock(self.cs[0], self.cs[0])
 
-        self.range_down1 = nn.Sequential(
-            Block1Res(self.cs[0],self.cs[1]),
-            Block2(dropout_rate=0.2,pooling=True,drop_out=False)
-        )
-        self.range_down2 = nn.Sequential(
-            Block1Res(self.cs[1],self.cs[2]),
-            Block2(dropout_rate=0.2, pooling=True)
-        )
-        self.range_down3 = nn.Sequential(
-            Block1Res(self.cs[2],self.cs[3]),
-            Block2(dropout_rate=0.2, pooling=True)
-        )
+        self.range_down1 = Block1Res(self.cs[0],self.cs[1],0.2,pooling=True,drop_out=False)
+        self.range_down2 = Block1Res(self.cs[1],self.cs[2],0.2,pooling=True)
+        self.range_down3 = Block1Res(self.cs[2],self.cs[3],0.2,pooling=True)
 
-        # nn.GatFusionModule
-
-        self.range_up1 = Block_withoutskip(self.cs[3],self.cs[4],upscale_factor=2,dropout_rate=0.2)
-        self.range_up2 = Block4(self.cs[4],self.cs[5],self.cs[2],2,0.2)
-        # nn.GatFusionModule
-
-        self.range_up3 = Block4(self.cs[5],self.cs[6],self.cs[1],2,0.2)
-        self.range_up4 = Block4(self.cs[6],self.cs[7],self.cs[0],1,0.2,drop_out=False)
-        self.range_final = nn.Sequential(
-            ResContextBlock(self.cs[7],self.output_channel),
-            ResContextBlock(self.output_channel, self.output_channel),
-            ResContextBlock(self.output_channel, self.output_channel),
-            # Block1Res(cs[0],cs[0])
-        )
+        self.range_up1 = UpBlock_withoutskip(self.cs[3],self.cs[4])
+        self.range_up2 = UpBlock(self.cs[4],self.cs[5],0.2,mid_filters=self.cs[4] // 4 + self.cs[2])
+        self.range_up3 = UpBlock(self.cs[5],self.cs[6],0.2,mid_filters=self.cs[5] // 4 + self.cs[1])
+        self.range_skip = conv_skip(self.cs[6],self.cs[7],self.cs[0])
+        self.range_final = ResContextBlock(self.cs[7],self.output_channel)
 
         self.final = nn.Linear(self.output_channel,self.output_channel)
 
@@ -180,39 +165,41 @@ class MrfNet(nn.Module):
         points.F = self.point_stem[0](points.F)
         range0, points, v1 = self.gfm_stem(range0,points,v1,px,py)
         
-        voxel_s1 = self.voxel_down1(v1)
-        voxel_s2 = self.voxel_down2(voxel_s1)
-        voxel_s4 = self.voxel_down3(voxel_s2)
-        voxel_s8 = self.voxel_down4(voxel_s4)
+        '''voxel downsample'''
+        voxel_s1 = self.voxel_block(v1)
+        voxel_s2 = self.voxel_down1(voxel_s1)
+        voxel_s4 = self.voxel_down2(voxel_s2)
+        voxel_s8 = self.voxel_down3(voxel_s4)
 
-        range_s2 = self.range_down1(range0) # n,64,32,1024
-        range_s4 = self.range_down2(range_s2) # n,128,16,512
-        
-        range_s8 = self.range_down3(range_s4) # n,256,8,256
+        '''range downsample'''
+        range_s1 = self.range_block(range0)
+        range_f2, range_s2 = self.range_down1(range_s1) # n,64,32,1024
+        range_f4, range_s4 = self.range_down2(range_f2) # n,128,16,512
+        range_f8, range_s8 = self.range_down3(range_f4) # n,256,8,256
         
         points.F = self.point_stem[1](points.F)
-        range_s8, points, voxel_s8 = self.gfm_stage4(range_s8,points,voxel_s8,px,py)
+        range_f8, points, voxel_s8 = self.gfm_stage8(range_f8,points,voxel_s8,px,py)
 
-        voxel_s4_tr = self.voxel_bottle(voxel_s8)
-        voxel_s2_tr = self.voxel_up1(voxel_s4_tr, voxel_s4)
-
-        range_s4_tr = self.range_up1(range_s8)
-        # print(range_s4_tr.shape, range_s4.shape)
-        range_s2_tr = self.range_up2(range_s4_tr, range_s4)
-
+        
+        voxel_s4_tr = self.voxel_up1(voxel_s8)
+        range_s4_tr = self.range_up1(range_f8)
         points.F = self.point_stem[2](points.F)
-        range_s2_tr, points, voxel_s2_tr = self.gfm_stage6(range_s2_tr,points,voxel_s2_tr,px,py)
+        range_s4_tr, points, voxel_s4_tr = self.gfm_stage4(range_s4_tr,points,voxel_s4_tr,px,py)
 
-        # voxel_s2_tr.F = self.dropout(voxel_s2_tr.F)
-        voxel_s1_tr = self.voxel_up2(voxel_s2_tr, voxel_s2)
-        voxel_out = self.voxel_up3(voxel_s1_tr, voxel_s1)
-        voxel_out_final = self.voxel_final(voxel_out)
-
-        range_s1_tr = self.range_up3(range_s2_tr, range_s2)
-        range_out = self.range_up4(range_s1_tr, range0)
-        range_out_final = self.range_final(range_out)
+        voxel_s2_tr = self.voxel_up2(voxel_s4_tr, voxel_s4)
+        range_s2_tr = self.range_up2(range_s4_tr, range_s4)
         points.F = self.point_stem[3](points.F)
-        range_out_final, points, voxel_out_final = self.gfm_stage8(range_out_final,points,voxel_out_final,px,py)
+        range_s2_tr, points, voxel_s2_tr = self.gfm_stage2(range_s2_tr,points,voxel_s2_tr,px,py)
+
+        voxel_s1_tr = self.voxel_up3(voxel_s2_tr, voxel_s2)
+        voxel_out = self.voxel_skip(voxel_s1_tr, voxel_s1)
+        range_s1_tr = self.range_up3(range_s2_tr, range_s2)
+        range_out = self.range_skip(range_s1_tr, range_s1)
+        
+        voxel_out_final = self.voxel_final(voxel_out)
+        range_out_final = self.range_final(range_out)
+        points.F = self.point_stem[4](points.F)
+        range_out_final, points, voxel_out_final = self.gfm_final(range_out_final,points,voxel_out_final,px,py)
 
         out = self.final(points.F)
         out_norm = out / torch.norm(out, p=2, dim=1, keepdim=True)
