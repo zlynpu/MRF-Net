@@ -31,7 +31,7 @@ class ResContextBlock(nn.Module):
 
 class Block1Res(nn.Module):
     def __init__(self, in_filters, out_filters, dropout_rate, kernel_size=(3, 3), stride=1,
-                 pooling=True, drop_out=True, return_skip=True):
+                 pooling=True, drop_out=False, return_skip=True):
         super(Block1Res, self).__init__()
         self.pooling = pooling
         self.drop_out = drop_out
@@ -76,7 +76,7 @@ class Block1Res(nn.Module):
             return resB
         
 class Block2(nn.Sequential):
-    def __init__(self,dropout_rate=0.2,kernel_size=3,pooling=True,drop_out=True):
+    def __init__(self,dropout_rate=0.2,kernel_size=3,pooling=True,drop_out=False):
         module = [
             nn.Dropout2d(p=dropout_rate) if drop_out else nn.Identity(),
             nn.AvgPool2d(kernel_size=kernel_size,stride=2,padding=1) if pooling else nn.Identity(),
@@ -85,7 +85,7 @@ class Block2(nn.Sequential):
 
 
 class Block4(nn.Module):
-    def __init__(self, in_channels, out_channels,skip_channels,upscale_factor=2,dropout_rate=0.2,drop_out=True):
+    def __init__(self, in_channels, out_channels,skip_channels,upscale_factor=2,dropout_rate=0.2,drop_out=False):
         super(Block4, self).__init__()
 
         self.upscale = nn.PixelShuffle(upscale_factor=upscale_factor)
@@ -129,7 +129,7 @@ class Block4(nn.Module):
         return out
     
 class Block_withoutskip(nn.Module):
-    def __init__(self, in_channels, out_channels,upscale_factor=2,dropout_rate=0.2,drop_out=True):
+    def __init__(self, in_channels, out_channels,upscale_factor=2,dropout_rate=0.2,drop_out=False):
         super(Block_withoutskip, self).__init__()
 
         self.upscale = nn.PixelShuffle(upscale_factor=upscale_factor)
@@ -175,7 +175,7 @@ class Block_withoutskip(nn.Module):
     
 class UpBlock(nn.Module):
 
-    def __init__(self, in_filters, out_filters, dropout_rate=0.2, drop_out=True, mid_filters=None):
+    def __init__(self, in_filters, out_filters, dropout_rate=0.2, drop_out=False, mid_filters=None):
         super(UpBlock, self).__init__()
         self.drop_out = drop_out
         self.in_filters = in_filters
@@ -231,7 +231,7 @@ class conv_skip(nn.Module):
 
 class UpBlock_withoutskip(nn.Module):
 
-    def __init__(self, in_filters, out_filters, dropout_rate=0.2, drop_out=True):
+    def __init__(self, in_filters, out_filters, dropout_rate=0.2, drop_out=False):
         super(UpBlock_withoutskip, self).__init__()
         self.drop_out = drop_out
         self.in_filters = in_filters

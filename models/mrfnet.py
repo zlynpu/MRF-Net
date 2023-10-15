@@ -166,6 +166,7 @@ class MrfNet(nn.Module):
         range0, points, v1 = self.gfm_stem(range0,points,v1,px,py)
         
         '''voxel downsample'''
+        # print(v1.F)
         voxel_s1 = self.voxel_block(v1)
         voxel_s2 = self.voxel_down1(voxel_s1)
         voxel_s4 = self.voxel_down2(voxel_s2)

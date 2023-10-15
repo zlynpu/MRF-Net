@@ -200,6 +200,7 @@ class KITTIDataset(Dataset):
         self.point_valid_index = None
         sel1 = self.do_voxel_projection(block1,tgt_xyz_norm,'sinput_tgt')
         self.data['sel1'] = sel1
+        # print(sel1)
         self.data['raw_pcd_tgt'] = tgt_pcd_input[sel1]
         self.do_range_projection(xyz1,tgt_pcd_refl,sel1,'tgt_range_image','tgt_px','tgt_py')
         
@@ -262,7 +263,7 @@ class KITTIDataset(Dataset):
         #                           points_refl[self.point_valid_index != -1]) \
         #              if self.point_valid_index is not None else (points_xyz,points_refl)
 
-        # points_xyz, points_refl = (points_xyz[sel],points_refl[sel])
+        # points_xyz_sel, points_refl_sel = (points_xyz[sel],points_refl[sel])
         depth = np.linalg.norm(points_xyz,2,axis=1)
 
         # get scan components
@@ -289,11 +290,14 @@ class KITTIDataset(Dataset):
         proj_x = np.clip(proj_x, 0, W - 1)  
 
         # Correct Out-of-Range Indices
-        px = proj_x.copy()[sel]
-        py = proj_y.copy()[sel]
+        # px = proj_x.copy()[sel]
+        # py = proj_y.copy()[sel]
 
         proj_x = np.floor(proj_x).astype(np.int32)
         proj_y = np.floor(proj_y).astype(np.int32)
+
+        px = proj_x[sel].copy()
+        py = proj_y[sel].copy()
         # print(proj_y)
 
      

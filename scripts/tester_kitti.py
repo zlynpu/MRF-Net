@@ -127,7 +127,7 @@ def main(config,checkpoint):
 
             distance_threshold = 0.3
             ransac_result = o3d.registration.registration_ransac_based_on_feature_matching(
-                pcd0, pcd1, feat0, feat1, distance_threshold,
+                pcd0, pcd1, feat0, feat1, distance_threshold*0.8,
                 o3d.registration.TransformationEstimationPointToPoint(False), 4, [
                 o3d.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
                 o3d.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)
@@ -172,9 +172,9 @@ def main(config,checkpoint):
 if __name__ == '__main__':
 
   dataset_path = "/home/huile/zhangliyuan/Dataset/Kitti"
-  output_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_mrfnet"
+  output_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_pointminkunet_new"
 
-  checkpoint_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_mrfnet/best_val_checkpoint_epoch_137_rte_0.29813356570433824.pth"
+  checkpoint_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_pointminkunet_new/best_val_checkpoint_epoch_178_rte_0.15460243667126633.pth"
 
 
   parser = argparse.ArgumentParser()

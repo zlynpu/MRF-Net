@@ -102,11 +102,12 @@ misc_arg.add_argument('--nn_max_n',type=int,default=500,help='The maximum number
 data_arg = add_argument_group('Data')
 # ----------------------------------------------------------------------- #
 # Kitti  ---- |output path|
-output_kitti = "outputs_kitti/exp_mrfnet"
+output_kitti = "outputs_kitti/exp_mrfnet_withoutdropout"
 logging_arg.add_argument('--out_dir', type=str, default=output_kitti)
 
 #Kitti  ----  |resume dir|
-misc_arg.add_argument('--resume_dir', type=str, default='/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_mrfnet')
+resume_dir = '/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_mrfnet_withoutdropout'
+misc_arg.add_argument('--resume_dir', type=str, default=resume_dir)
 
 # kitti ---- |num thread|
 misc_arg.add_argument('--train_num_thread', type=int, default=8)

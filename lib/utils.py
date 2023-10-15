@@ -18,6 +18,7 @@ import torchsparse.nn.functional as F
 from torchsparse import SparseTensor, PointTensor
 from torchsparse.nn.utils import get_kernel_offsets
 from typing import Union, Tuple
+import range_utils.nn.functional as rnf
 
 _EPS = 1e-7  # To prevent division by zero
 
@@ -266,5 +267,22 @@ def point_to_range(range_shape,pF,px,py):
         image = image/image_cumsum.to(px[0].device)
         r.append(image.permute(2,0,1))
         cnt += p_x.shape[1]
+        # batch_id = torch.zeros(p_x.shape[1]).to(px[0].device)
+        # p_x = torch.floor((p_x/2. + 0.5) * (W-1)).long().squeeze(0)
+        # p_y = torch.floor((p_y/2. + 0.5) * (H-1)).long().squeeze(0)
+        # # print(p_x.shape)
+        # pxpy = torch.stack([batch_id,p_x,p_y],dim=1).to(px[0].device).int()
+        # print(pxpy)
+        # cm = rnf.map_count(pxpy, 1, H, W)
+        # print(cm)
+        # fm = rnf.denselize(pF[cnt:cnt+p_x.shape[1]], cm, pxpy)
+        # print(fm)
+        # # print('fm',fm.shape)
+        # r.append(fm)
+        # cnt += p_x.shape[1]
     # print(time.time()-t1) # 0.03s batch=12
+    # print(torch.stack(r,dim=0).shape)
     return torch.stack(r,dim=0).to(px[0].device)
+    # result = torch.cat(r,dim=0).to(px[0].device)
+    # print(result)
+    # return result
