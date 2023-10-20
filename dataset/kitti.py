@@ -220,7 +220,7 @@ class KITTIDataset(Dataset):
 
     def do_voxel_projection(self,feat,points_xyz,name):
 
-        feat_one = torch.ones((feat.shape[0],1))
+        feat_one = torch.ones((feat.shape[0],4))
         pc = np.round(points_xyz / self.voxel_size).astype(np.int32)
 
         _, inds, inverse_map = sparse_quantize(pc, return_index=True,
@@ -251,6 +251,7 @@ class KITTIDataset(Dataset):
         #                        feat[self.point_valid_index != -1]) \
         #                 if self.point_valid_index is not None else (points_xyz,feat)
         coord_,feat_ = (points_xyz[inds],feat[inds])
+        # coord_,feat_ = (points_xyz[inds],feat_one[inds])
         # print('coord_:',coord_.shape)
         self.data[name] = SparseTensor(feats=feat_,coords=coord_)
         return inds

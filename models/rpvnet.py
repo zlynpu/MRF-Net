@@ -63,76 +63,44 @@ class RPVNet(nn.Module):
         # self.num_classes = kwargs.get('num_classes')
         self.cs = (self.cs*self.cr).int()
 
-
         ''' voxel branch '''
         self.voxel_stem = nn.Sequential(
-            spnn.Conv3d(self.input_channel, self.cs[0], kernel_size=3, stride=1),
+            spnn.Conv3d(self.input_channel, self.cs[0], kernel_size=5, stride=1),
             spnn.BatchNorm(self.cs[0]), spnn.ReLU(True),
             spnn.Conv3d(self.cs[0], self.cs[0], kernel_size=3, stride=1),
             spnn.BatchNorm(self.cs[0]), spnn.ReLU(True))
         self.voxel_down1 = DownVoxelStage(self.cs[0],self.cs[1],
-                                      b_kernel_size=2,b_stride=2,b_dilation=1,
+                                      b_kernel_size=3,b_stride=2,b_dilation=1,
                                       kernel_size=3,stride=1,dilation=1)
         self.voxel_down2 = DownVoxelStage(self.cs[1], self.cs[2],
-                                      b_kernel_size=2, b_stride=2, b_dilation=1,
+                                      b_kernel_size=3, b_stride=2, b_dilation=1,
                                       kernel_size=3, stride=1, dilation=1)
         self.voxel_down3 = DownVoxelStage(self.cs[2], self.cs[3],
-                                      b_kernel_size=2, b_stride=2, b_dilation=1,
+                                      b_kernel_size=3, b_stride=2, b_dilation=1,
                                       kernel_size=3, stride=1, dilation=1)
-        self.voxel_down4 = DownVoxelStage(self.cs[3], self.cs[4],
-                                      b_kernel_size=2, b_stride=2, b_dilation=1,
-                                      kernel_size=3, stride=1, dilation=1)
-        self.voxel_up1 = UpVoxelStage(self.cs[4],self.cs[5],self.cs[3],
-                                 b_kernel_size=2,b_stride=2,
+        self.voxel_up1 = UpVoxelStage(self.cs[3],self.cs[4],self.cs[2],
+                                 b_kernel_size=3,b_stride=2,
                                  kernel_size=3,stride=1,dilation=1)
-        self.voxel_up2 = UpVoxelStage(self.cs[5],self.cs[6],self.cs[2],
-                                 b_kernel_size=2,b_stride=2,
+        self.voxel_up2 = UpVoxelStage(self.cs[4],self.cs[5],self.cs[1],
+                                 b_kernel_size=3,b_stride=2,
                                  kernel_size=3,stride=1,dilation=1)
-        self.voxel_up3 = UpVoxelStage(self.cs[6],self.cs[7],self.cs[1],
-                                 b_kernel_size=2,b_stride=2,
+        self.voxel_up3 = UpVoxelStage(self.cs[5],self.cs[6],self.cs[0],
+                                 b_kernel_size=3,b_stride=2,
                                  kernel_size=3,stride=1,dilation=1)
-        self.voxel_up4 = UpVoxelStage(self.cs[7],self.cs[8],self.cs[0],
-                                 b_kernel_size=2,b_stride=2,
-                                 kernel_size=3,stride=1,dilation=1)
-
-        self.dropout = Block2(dropout_rate=0.3,pooling=False,drop_out=True)
-
+        
         ''' range branch '''
         self.range_stem = nn.Sequential(
             ResContextBlock(2,self.cs[0]),
             ResContextBlock(self.cs[0], self.cs[0]),
-            ResContextBlock(self.cs[0], self.cs[0]),
-            # Block1Res(cs[0],cs[0])
         )
-        # nn.GatFusionModule
+        self.range_down1 = Block1Res(self.cs[0], self.cs[1], 0.2, pooling=True, drop_out=False)
+        self.range_down2 = Block1Res(self.cs[1], self.cs[2], 0.2, pooling=True, drop_out=False)
+        self.range_down3 = Block1Res(self.cs[2], self.cs[3], 0.2, pooling=True, drop_out=False)
 
-        self.range_stage1 = nn.Sequential(
-            Block1Res(self.cs[0],self.cs[1]),
-            Block2(dropout_rate=0.2,pooling=True,drop_out=False)
-        )
-        self.range_stage2 = nn.Sequential(
-            Block1Res(self.cs[1],self.cs[2]),
-            Block2(dropout_rate=0.2, pooling=True)
-        )
-        self.range_stage3 = nn.Sequential(
-            Block1Res(self.cs[2],self.cs[3]),
-            Block2(dropout_rate=0.2, pooling=True)
-        )
-
-        self.range_stage4 = nn.Sequential(
-            Block1Res(self.cs[3],self.cs[4]),
-            Block2(dropout_rate=0.2, pooling=True)
-        )
-        # nn.GatFusionModule
-
-        self.range_stage5 = Block4(self.cs[4],self.cs[5],self.cs[3],upscale_factor=2,dropout_rate=0.2)
-        self.range_stage6 = Block4(self.cs[5],self.cs[6],self.cs[2],2,0.2)
-        # nn.GatFusionModule
-
-        self.range_stage7 = Block4(self.cs[6],self.cs[7],self.cs[1],2,0.2)
-        self.range_stage8 = Block4(self.cs[7],self.cs[8],self.cs[0],2,0.2,drop_out=False)
-        # nn.GatFusionModule
-
+        self.range_up1 = UpBlock(self.cs[3],self.cs[4],0.2,drop_out=False,mid_filters=self.cs[3] // 4 + self.cs[2])
+        self.range_up2 = UpBlock(self.cs[4],self.cs[5],0.2,drop_out=False,mid_filters=self.cs[4] // 4 + self.cs[1])
+        self.range_up3 = UpBlock(self.cs[5],self.cs[6],0.2,drop_out=False,mid_filters=self.cs[5] // 4 + self.cs[0])
+ 
         ''' point branch '''
         self.point_stem = nn.ModuleList([
             # 32
@@ -143,109 +111,82 @@ class RPVNet(nn.Module):
             ),
             # 256
             nn.Sequential(
-                nn.Linear(self.cs[0], self.cs[4]),
-                nn.BatchNorm1d(self.cs[4]),
+                nn.Linear(self.cs[0], self.cs[3]),
+                nn.BatchNorm1d(self.cs[3]),
                 nn.ReLU(True),
             ),
             # 128
             nn.Sequential(
-                nn.Linear(self.cs[4], self.cs[6]),
-                nn.BatchNorm1d(self.cs[6]),
+                nn.Linear(self.cs[3], self.cs[5]),
+                nn.BatchNorm1d(self.cs[5]),
                 nn.ReLU(True),
             ),
             # 32
             nn.Sequential(
-                nn.Linear(self.cs[6], self.cs[8]),
-                nn.BatchNorm1d(self.cs[8]),
+                nn.Linear(self.cs[5], self.cs[6]),
+                nn.BatchNorm1d(self.cs[6]),
                 nn.ReLU(True),
             ),
 
         ])
 
         self.gfm_stem = GFM(self.cs[0])
-        self.gfm_stage4 = GFM(self.cs[4])
-        self.gfm_stage6 = GFM(self.cs[6])
-        self.gfm_stage8 = GFM(self.cs[8])
+        self.gfm_stage1 = GFM(self.cs[3])
+        self.gfm_stage2 = GFM(self.cs[5])
+        self.gfm_stage3 = GFM(self.cs[6])
 
-        self.final = nn.Linear(self.cs[8],self.cs[8])
-
-        self.weight_initialization()
-
-    def weight_initialization(self):
-        for m in self.modules():
-            if isinstance(m,nn.BatchNorm1d):
-                nn.init.constant_(m.weight,1)
-                nn.init.constant_(m.bias,0)
+        self.final = nn.Linear(self.cs[6],self.cs[6])
 
     def forward(self,lidar,image,py,px):
 
         points = PointTensor(lidar.F,lidar.C.float())
-        # print('point',points.C)
         v0 = initial_voxelize(points,self.vsize)
         if torch.isnan(image).any():
             print('there is nan at first')
         # print('voxel',v0.C)
 
         ''' Fuse 1 '''
-        v0 = self.voxel_stem(v0)
+        v1 = self.voxel_stem(v0)
         points.F = self.point_stem[0](points.F) # 32
-        range0 = self.range_stem(image) # n,32,64,2048
-        # print("Layer 0 - NaN check:", torch.isnan(range0).any())
-        # print(range0.shape)
-        # print("Layer 1 - NaN check:", torch.isnan(v.F).any())
-        range0,points,v0 = self.gfm_stem(range0,points,v0,px,py)
-        if torch.isnan(range0).any():
+        range1 = self.range_stem(image) # n,32,64,2048
+        range1,points,v1 = self.gfm_stem(range1,points,v1,px,py)
+        if torch.isnan(range1).any():
             print('there is nan after gfm')
-        # print("Layer 0 - NaN check:", torch.isnan(range0).any())
-        # todo: add dropout here?
-        # v0.F = self.dropout(v0.F)
-
         ''' Fuse 2 '''
-        # print(v0.F.shape)
-        v1 = self.voxel_down1(v0) #64
-        v2 = self.voxel_down2(v1) #128
-        v3 = self.voxel_down3(v2) #256
-        v4 = self.voxel_down4(v3) #256
-        # print("Layer 1 - NaN check:", torch.isnan(range0).any())
-
+        v2 = self.voxel_down1(v1) #64
+        v4 = self.voxel_down2(v2) #128
+        v8 = self.voxel_down3(v4) #256
+        
         points.F = self.point_stem[1](points.F)# 64
 
-        range1 = self.range_stage1(range0) # n,64,32,1024
-        range2 = self.range_stage2(range1) # n,128,16,512
-        range3 = self.range_stage3(range2) # n,256,8,256
-        range4 = self.range_stage4(range3) # n,256,4,128
-
-        range4,points,v4 = self.gfm_stage4(range4,points,v4,px,py)
-        v4.F = self.dropout(v4.F)
-        # print("Layer 2 - NaN check:", torch.isnan(range4).any())
+        range2 = self.range_down1(range1) # n,64,32,1024
+        range4 = self.range_down2(range2) # n,128,16,512
+        range8 = self.range_down3(range4) # n,256,8,256
+        
+        range8,points,v8 = self.gfm_stage1(range8,points,v8,px,py)
 
         ''' Fuse 3 '''
-        v5 = self.voxel_up1(v4,v3)
-        v6 = self.voxel_up2(v5,v2)
+        v4_tr = self.voxel_up1(v8,v4)
+        v2_tr = self.voxel_up2(v4_tr,v2)
 
         points.F = self.point_stem[2](points.F)
 
-        range5 = self.range_stage5(range4,range3)
-        range6 = self.range_stage6(range5,range2)
-        # print("Layer 2.1 - NaN check:", torch.isnan(range6).any())
-
-        range6,points,v6 = self.gfm_stage6(range6,points,v6,px,py)
-        # print("Layer 2.2 - NaN check:", torch.isnan(range6).any())
-        v6.F = self.dropout(v6.F)
+        range4_tr = self.range_up1(range8,range4)
+        range2_tr = self.range_up2(range4_tr,range2)
+        
+        range2_tr,points,v2_tr = self.gfm_stage2(range2_tr,points,v2_tr,px,py)
 
         ''' Fuse 4 '''
-        v7 = self.voxel_up3(v6,v1)
-        v8 = self.voxel_up4(v7,v0)
-
+        v1_tr = self.voxel_up3(v2_tr,v1)
+        
         points.F = self.point_stem[3](points.F)
 
-        range7 = self.range_stage7(range6,range1)
-        range8 = self.range_stage8(range7,range0)
-        # print("Layer 2.5 - NaN check:", torch.isnan(range8).any())
-        range8,points,v8 = self.gfm_stage8(range8,points,v8,px,py)
+        range1_tr = self.range_up3(range2_tr,range1)
+        
+        range1_tr,points,v1_tr = self.gfm_stage3(range1_tr,points,v1_tr,px,py)
 
         out = self.final(points.F)
-        # print("Layer 3 - NaN check:", torch.isnan(range8).any())
+        
         if torch.isnan(out).any():
             print('there is nan in the end!!')
 

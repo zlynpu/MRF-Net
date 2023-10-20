@@ -31,7 +31,7 @@ class ResContextBlock(nn.Module):
 
 class Block1Res(nn.Module):
     def __init__(self, in_filters, out_filters, dropout_rate, kernel_size=(3, 3), stride=1,
-                 pooling=True, drop_out=False, return_skip=True):
+                 pooling=True, drop_out=False, return_skip=False):
         super(Block1Res, self).__init__()
         self.pooling = pooling
         self.drop_out = drop_out

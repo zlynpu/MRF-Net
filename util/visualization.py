@@ -31,10 +31,12 @@ def get_colored_point_cloud_feature(pcd, feature, voxel_size):
   tsne_results = embed_tsne(feature)
 
   color = get_color_map(tsne_results)
-  pcd.colors = o3d.utility.Vector3dVector(color)
-  spheres = mesh_sphere(pcd, voxel_size)
+  # print(color)
+  colors = np.array(color)
+  # spheres = mesh_sphere(vis_pcd, voxel_size)
 
-  return spheres
+  # return spheres
+  return colors
 
 
 def embed_tsne(data):

@@ -92,7 +92,7 @@ class MinkUNet(nn.Module):
         # out_norm = SparseTensor(voxel_out_final.F / torch.norm(voxel_out_final.F, p=2, dim=1, keepdim=True), voxel_out_final.C, 1)
         # out_norm.cmaps.setdefault((1,1,1), out_norm.coords)
         # out = voxel_to_point(out_norm, points)
-        out = out / (torch.norm(out, p=2, dim=1, keepdim=True)+1e-5)
+        out = out / (torch.norm(out, p=2, dim=1, keepdim=True))
         # print(out.shape)
 
         return out

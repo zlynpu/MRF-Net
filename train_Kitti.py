@@ -1,7 +1,7 @@
 # coding = utf-8
 import open3d as o3d  # prevent loading error
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 import sys
 import json
@@ -23,8 +23,8 @@ logging.getLogger().setLevel(logging.INFO)
 logging.basicConfig(
     format='%(asctime)s %(message)s', datefmt='%m/%d %H:%M:%S', handlers=[ch])
 
-torch.manual_seed(0)
-torch.cuda.manual_seed(0)
+torch.manual_seed(3407)
+torch.manual_seed(3407)
 
 logging.basicConfig(level=logging.INFO, format="")
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     for k in dconfig:
       if k not in ['resume_dir'] and k in resume_config:
         dconfig[k] = resume_config[k]
-    dconfig['resume'] = resume_config['out_dir'] + '/checkpoint_epoch_40_rte_0.7517042001266964.pth'
+    dconfig['resume'] = resume_config['out_dir'] + '/checkpoint_epoch_91_rte_0.30534206062438896.pth'
 
   logging.info('===> Configurations')
   for k in dconfig:

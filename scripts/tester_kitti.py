@@ -113,11 +113,11 @@ def main(config,checkpoint):
 
             xyz0np, xyz1np = xyz0.numpy(), xyz1.numpy()
 
-            n_points = 5000
-            ########################################
-            # run random sampling or probabilistic sampling
-            xyz0np, F0 = random_sample(xyz0np, F0, n_points)
-            xyz1np, F1 = random_sample(xyz1np, F1, n_points)
+            # n_points = 5000
+            # ########################################
+            # # run random sampling or probabilistic sampling
+            # xyz0np, F0 = random_sample(xyz0np, F0, n_points)
+            # xyz1np, F1 = random_sample(xyz1np, F1, n_points)
 
             pcd0 = make_open3d_point_cloud(xyz0np)
             pcd1 = make_open3d_point_cloud(xyz1np)
@@ -172,9 +172,9 @@ def main(config,checkpoint):
 if __name__ == '__main__':
 
   dataset_path = "/home/huile/zhangliyuan/Dataset/Kitti"
-  output_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_pointminkunet_new"
+  output_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_mrfnet_withoutdropout"
 
-  checkpoint_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_pointminkunet_new/best_val_checkpoint_epoch_178_rte_0.15460243667126633.pth"
+  checkpoint_path = "/home/huile/zhangliyuan/Code/MRFNet/outputs_kitti/exp_mrfnet_withoutdropout/checkpoint_epoch_103_rte_0.3358605405013077.pth"
 
 
   parser = argparse.ArgumentParser()

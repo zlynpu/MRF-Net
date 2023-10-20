@@ -278,8 +278,8 @@ class ContrastiveLossTrainer(AlignmentTrainer):
       tgt_py = [t_y.to(self.device) for t_y in tgt_py]
               
       F0 = self.model(sinput_src,src_image,src_py,src_px)
-      # print('out:',F0)
       F1 = self.model(sinput_tgt,tgt_image,tgt_py,tgt_px)
+      # F0, F1 = self.model(sinput_src,src_image,src_py,src_px,sinput_tgt,tgt_image,tgt_py,tgt_px)
       sel0 = input_dict['sel0'].tolist()
       sel1 = input_dict['sel1'].tolist()
       feat_timer.toc()
@@ -453,9 +453,9 @@ class HardestContrastiveLossTrainer(ContrastiveLossTrainer):
         tgt_py = [t_y.to(self.device) for t_y in tgt_py]
                 
         F0 = self.model(sinput_src,src_image,src_py,src_px)
-        # print(F0)
         F1 = self.model(sinput_tgt,tgt_image,tgt_py,tgt_px)
-        
+        # F0, F1 = self.model(sinput_src,src_image,src_py,src_px,sinput_tgt,tgt_image,tgt_py,tgt_px)
+
         sel0 = input_dict['sel0'].tolist()
         sel1 = input_dict['sel1'].tolist()
         pos_pairs = input_dict['correspondence']

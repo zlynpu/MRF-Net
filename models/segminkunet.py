@@ -24,35 +24,29 @@ class SegMinkUNet(nn.Module):
 
         ''' voxel branch '''
         self.voxel_stem = nn.Sequential(
-            spnn.Conv3d(self.input_channel, self.cs[0], kernel_size=3, stride=1),
+            spnn.Conv3d(self.input_channel, self.cs[0], kernel_size=5, stride=1),
             spnn.BatchNorm(self.cs[0]), spnn.ReLU(True),
             spnn.Conv3d(self.cs[0], self.cs[0], kernel_size=3, stride=1),
             spnn.BatchNorm(self.cs[0]), spnn.ReLU(True))
         self.voxel_down1 = DownVoxelStage(self.cs[0],self.cs[1],
-                                      b_kernel_size=2,b_stride=2,b_dilation=1,
+                                      b_kernel_size=3,b_stride=2,b_dilation=1,
                                       kernel_size=3,stride=1,dilation=1)
         self.voxel_down2 = DownVoxelStage(self.cs[1], self.cs[2],
-                                      b_kernel_size=2, b_stride=2, b_dilation=1,
+                                      b_kernel_size=3, b_stride=2, b_dilation=1,
                                       kernel_size=3, stride=1, dilation=1)
         self.voxel_down3 = DownVoxelStage(self.cs[2], self.cs[3],
-                                      b_kernel_size=2, b_stride=2, b_dilation=1,
+                                      b_kernel_size=3, b_stride=2, b_dilation=1,
                                       kernel_size=3, stride=1, dilation=1)
-        self.voxel_down4 = DownVoxelStage(self.cs[3], self.cs[4],
-                                      b_kernel_size=2, b_stride=2, b_dilation=1,
-                                      kernel_size=3, stride=1, dilation=1)
-        self.voxel_up1 = UpVoxelStage(self.cs[4],self.cs[5],self.cs[3],
-                                 b_kernel_size=2,b_stride=2,
+        self.voxel_up1 = UpVoxelStage(self.cs[3],self.cs[4],self.cs[2],
+                                 b_kernel_size=3,b_stride=2,
                                  kernel_size=3,stride=1,dilation=1)
-        self.voxel_up2 = UpVoxelStage(self.cs[5],self.cs[6],self.cs[2],
-                                 b_kernel_size=2,b_stride=2,
+        self.voxel_up2 = UpVoxelStage(self.cs[4],self.cs[5],self.cs[1],
+                                 b_kernel_size=3,b_stride=2,
                                  kernel_size=3,stride=1,dilation=1)
-        self.voxel_up3 = UpVoxelStage(self.cs[6],self.cs[7],self.cs[1],
-                                 b_kernel_size=2,b_stride=2,
+        self.voxel_up3 = UpVoxelStage(self.cs[5],self.cs[6],self.cs[0],
+                                 b_kernel_size=3,b_stride=2,
                                  kernel_size=3,stride=1,dilation=1)
-        self.voxel_up4 = UpVoxelStage(self.cs[7],self.cs[8],self.cs[0],
-                                 b_kernel_size=2,b_stride=2,
-                                 kernel_size=3,stride=1,dilation=1)
-
+        
         # self.dropout = Block2(dropout_rate=0.3,pooling=False,drop_out=True)
 
     def weight_initialization(self):
@@ -69,18 +63,16 @@ class SegMinkUNet(nn.Module):
         if torch.isnan(image).any():
             print('there is nan at first')
         
-        v0 = self.voxel_stem(v0)
-        v1 = self.voxel_down1(v0) #64
-        v2 = self.voxel_down2(v1) #128
-        v3 = self.voxel_down3(v2) #256
-        v4 = self.voxel_down4(v3) #256
+        v1 = self.voxel_stem(v0)
+        v2 = self.voxel_down1(v1) #64
+        v4 = self.voxel_down2(v2) #128
+        v8 = self.voxel_down3(v4) #256
 
-        v5 = self.voxel_up1(v4,v3)
-        v6 = self.voxel_up2(v5,v2)
-        v7 = self.voxel_up3(v6,v1)
-        v8 = self.voxel_up4(v7,v0)
-
-        out = voxel_to_point(v8, points)
+        v4_tr = self.voxel_up1(v8,v4)
+        v2_tr = self.voxel_up2(v4_tr,v2)
+        v1_tr = self.voxel_up3(v2_tr,v1)
+        
+        out = voxel_to_point(v1_tr, points)
 
         out_norm = out / torch.norm(out, p=2, dim=1, keepdim=True)
 
